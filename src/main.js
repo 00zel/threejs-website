@@ -26,7 +26,7 @@ scene.add(directionalLight);
 const loader = new GLTFLoader();
 let garment; // Store the garment mesh
 
-loader.load('/Gown_1.glb', function (gltf) {
+loader.load('/Dress2.glb', function (gltf) {
     garment = gltf.scene; // Store the loaded garment mesh
     garment.scale.set(1, 1, 1); // Adjust size if needed
     scene.add(garment);
@@ -40,9 +40,7 @@ camera.position.set(0, 0.8, 2);
 // Animation loop
 function animate() {
     requestAnimationFrame(animate);
-    if (garment) {
-        garment.rotation.y += 0.01; // Rotate the garment around the Y-axis
-    }
+    
     renderer.render(scene, camera);
 }
 animate();
