@@ -14,7 +14,7 @@ document.body.appendChild(renderer.domElement);
 
 // 3️⃣ LOAD BACKGROUND IMAGE
 const textureLoader = new THREE.TextureLoader();
-const backgroundTexture = textureLoader.load('/env.jpg'); // ✅ Ensure this file exists
+const backgroundTexture = textureLoader.load('/env5.jpg'); // ✅ Ensure this file exists
 scene.background = backgroundTexture;
 
 // 4️⃣ LIGHTING: Add light to make objects visible
@@ -24,7 +24,7 @@ scene.add(testLight);
 
 // 5️⃣ LOAD 3D MODEL (Only Once)
 const loader = new GLTFLoader();
-loader.load('/Dress2.glb', function (gltf) {
+loader.load('/Puffer.glb', function (gltf) {
     garment = gltf.scene;
     scene.add(garment);
 
