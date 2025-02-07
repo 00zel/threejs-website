@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
-let garment; // ✅ Declared globally so it's accessible in `animate()`
+let combinedGroup; // Global variable for the garment group
 
 // 2️⃣ SCENE SETUP: Create a Three.js scene
 const scene = new THREE.Scene();
@@ -12,78 +12,101 @@ const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// 3️⃣ LOAD BACKGROUND IMAGE
+// 3️⃣ LIGHTING: Add light to make objects visible
+const directionalLight = new THREE.DirectionalLight(0xffffff, 3);
+directionalLight.position.set(5, 10, 5);
+scene.add(directionalLight);
+
+// 4️⃣ HDRI BACKGROUND: Retain the previous working HDRI
 const textureLoader = new THREE.TextureLoader();
-const backgroundTexture = textureLoader.load('/env5.jpg'); // ✅ Ensure this file exists
+const backgroundTexture = textureLoader.load('/env5.jpg'); // Your existing working HDRI
 scene.background = backgroundTexture;
 
-// 4️⃣ LIGHTING: Add light to make objects visible
-const testLight = new THREE.DirectionalLight(0xffffff, 3);
-testLight.position.set(5, 10, 5);
-scene.add(testLight);
+// 5️⃣ LOAD TEXTURES FROM SUBSTANCE PAINTER
+const Puffer = {
+    baseColor: textureLoader.load('/textures/Puffer_Puffer_BaseColor.png'),
+    normalMap: textureLoader.load('/textures/Puffer_Puffer_Normal.png'),
+    roughnessMap: textureLoader.load('/textures/Puffer_Puffer_Roughness.png'),
+    metallicMap: textureLoader.load('/textures/Puffer_Puffer_Metallic.png'),
+    emissiveMap: textureLoader.load('/textures/Puffer_Puffer_Emissive.png'),
+};
 
-// 5️⃣ LOAD 3D MODEL (Only Once)
+const Accent = {
+    baseColor: textureLoader.load('/textures/Puffer_Accent_BaseColor.png'),
+    normalMap: textureLoader.load('/textures/Puffer_Accent_Normal.png'),
+    roughnessMap: textureLoader.load('/textures/Puffer_Accent_Roughness.png'),
+    metallicMap: textureLoader.load('/textures/Puffer_Accent_Metallic.png'),
+    emissiveMap: textureLoader.load('/textures/Puffer_Accent_Emissive.png'),
+};
+
+const Lining = {
+    baseColor: textureLoader.load('/textures/Puffer_Lining_BaseColor.png'),
+    normalMap: textureLoader.load('/textures/Puffer_Lining_Normal.png'),
+    roughnessMap: textureLoader.load('/textures/Puffer_Lining_Roughness.png'),
+    metallicMap: textureLoader.load('/textures/Puffer_Lining_Metallic.png'),
+    emissiveMap: textureLoader.load('/textures/Puffer_Lining_Emissive.png'),
+};
+
+// 6️⃣ LOAD 3D MODEL (GLTF/GLB)
 const loader = new GLTFLoader();
 loader.load('/Puffer.glb', function (gltf) {
-    garment = gltf.scene;
-    scene.add(garment);
+    const garment = gltf.scene;
+    combinedGroup = new THREE.Group(); // Initialize group
 
-    // 🔹 DEBUG MESH NAMES (Prints All Meshes)
+    // Traverse the model and assign textures
     garment.traverse((child) => {
-        if (child.isMesh) {  
-            console.log("Mesh Name:", child.name, "Material:", child.material.name);
-        }
-    });
+        if (child.isMesh) {
+            console.log('Mesh:', child.name, 'Material:', child.material.name, 'UVs:', child.geometry.attributes.uv.array);
 
-    // 🔹 APPLY MATERIALS TO INDIVIDUAL MESHES
-    const materialAssignments = {
-        "Cloth_mesh": 0xf1caff, // Neckline
-        "Cloth_mesh_1": 0xf1caff, // Back neckline
-        "Cloth_mesh_2": 0xf1caff, // L sleeve cuff
-        "Cloth_mesh_3": 0xa6e1ff, // L sleeve
-        "Cloth_mesh_4": 0xf1caff, // R sleeve cuff
-        "Cloth_mesh_5": 0xa6e1ff, // R sleeve
-        "Cloth_mesh_6": 0xf7d5ee, // Front bodice
-        "Cloth_mesh_7": 0xf7d5ee, // Back bodice
-        "Cloth_mesh_8": 0xf1caff, // L body lining
-        "Cloth_mesh_9": 0xa6e1ff, // L skirt side
-        "Cloth_mesh_10": 0xa6e1ff, // R skirt side
-        "Cloth_mesh_11": 0xf1caff, // R body lining
-        "Cloth_mesh_12": 0xf1caff, // R skirt lining
-        "Cloth_mesh_13": 0xf1caff, // L skirt lining
-    };
-
-    garment.traverse((child) => {
-        if (child.isMesh && materialAssignments[child.name]) {  
-            child.material = new THREE.MeshStandardMaterial({
-                color: materialAssignments[child.name],
-                roughness: 0.9,
-                metalness: 0,
-                side: THREE.DoubleSide,
-            });
-        }
-    });
-
-    // 🔹 APPLY NORMAL MAP AFTER MODEL IS LOADED
-    textureLoader.load('/textures/Normal1.jpg', function (normalMap) {
-        normalMap.wrapS = THREE.RepeatWrapping;
-        normalMap.wrapT = THREE.RepeatWrapping;
-        normalMap.repeat.set(3, 3); // Adjust tiling
-
-        garment.traverse((child) => {
-            if (child.isMesh) {  
-                child.material.normalMap = normalMap; // ✅ Apply normal map to existing materials
+            // Assign textures based on material name
+            switch (child.material.name) {
+                case 'Puffer_996005': // Puffer material
+                    child.material.map = Puffer.baseColor;
+                    child.material.normalMap = Puffer.normalMap;
+                    child.material.roughnessMap = Puffer.roughnessMap;
+                    child.material.metalnessMap = Puffer.metallicMap;
+                    child.material.emissiveMap = Puffer.emissiveMap;
+                    break;
+                case 'Accent_996008': // Accent material
+                    child.material.map = Accent.baseColor;
+                    child.material.normalMap = Accent.normalMap;
+                    child.material.roughnessMap = Accent.roughnessMap;
+                    child.material.metalnessMap = Accent.metallicMap;
+                    child.material.emissiveMap = Accent.emissiveMap;
+                    break;
+                case 'Lining_996011': // Lining material
+                    child.material.map = Lining.baseColor;
+                    child.material.normalMap = Lining.normalMap;
+                    child.material.roughnessMap = Lining.roughnessMap;
+                    child.material.metalnessMap = Lining.metallicMap;
+                    child.material.emissiveMap = Lining.emissiveMap;
+                    break;
+                default:
+                    console.warn('⚠️ Unexpected material:', child.material.name);
             }
-        });
+
+            // Safely set flipY for textures
+            if (child.material.map) child.material.map.flipY = false;
+            if (child.material.normalMap) child.material.normalMap.flipY = false;
+            if (child.material.roughnessMap) child.material.roughnessMap.flipY = false;
+            if (child.material.metalnessMap) child.material.metalnessMap.flipY = false;
+            if (child.material.emissiveMap) child.material.emissiveMap.flipY = false;
+
+            child.material.needsUpdate = true; // Ensure the material updates
+        }
     });
+
+    // Add the garment to the combined group and scene
+    combinedGroup.add(garment);
+    scene.add(combinedGroup);
 });
 
-// 6️⃣ ANIMATION LOOP: Rotates the entire garment
+// 7️⃣ ANIMATION LOOP: Rotate the combined garment group
 function animate() {
     requestAnimationFrame(animate);
 
-    if (garment) {  // ✅ Ensure the model is loaded before rotating
-        garment.rotation.y += 0.01; // ✅ Rotates everything together
+    if (combinedGroup) {
+        combinedGroup.rotation.y += 0.01; // Rotate the garment group
     }
 
     renderer.render(scene, camera);
