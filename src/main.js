@@ -39,16 +39,16 @@ controls.maxDistance = 10; // ✅ Prevent zooming too far
 controls.maxPolarAngle = Math.PI / 2; // ✅ Keep camera above ground
 
 // // 3️⃣ LIGHTING: Keep strong lighting for contrast
-const ambientLight = new THREE.AmbientLight(0xFCB8E3, 1); // ✅ Increased intensity
-scene.add(ambientLight);
+// const ambientLight = new THREE.AmbientLight(0x00bcff, 100); // ✅ Increased intensity
+// scene.add(ambientLight);
 
-const directionalLight = new THREE.DirectionalLight(0xF5E6FF, 3);
+const directionalLight = new THREE.DirectionalLight(0xf9a5ff, 100);
 directionalLight.position.set(5, 10, 5);
 scene.add(directionalLight);
 
 // 4️⃣ HDRI BACKGROUND 
 const textureLoader = new THREE.TextureLoader();
-const backgroundTexture = textureLoader.load('/env5.jpg');
+const backgroundTexture = textureLoader.load('/black.jpg');
 scene.background = backgroundTexture;
 
 // 5️⃣ GARMENT FILES
@@ -73,8 +73,8 @@ function loadGarment(filePath, index) {
         // ✅ APPLYING MATERIAL TO ALL MESHES
         const whiteMaterial = new THREE.MeshStandardMaterial({
             color: 0xFFFFFF, 
-            roughness: 1, 
-            metalness: 0.2,
+            roughness: 0.05, 
+            metalness: 0.99995,
             side: THREE.DoubleSide // ✅ Ensures both sides render properly
         });
 
@@ -87,7 +87,7 @@ function loadGarment(filePath, index) {
         // POSITION GARMENTS IN ORBIT
         const radius = 2.5;
         const angle = (index / garmentFiles.length) * Math.PI * 2;
-        garment.position.set(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
+        garment.position.set(Math.cos(angle) * radius, 0, Math.sin(angle) * radius); 
         
         // ✅ ADDING CLO/MD ANIMATIONS
         let mixer = null;
@@ -164,7 +164,7 @@ function animate() {
         garment.angle += 0.0015;
         garment.object.position.x = Math.cos(garment.angle) * radius;
         garment.object.position.z = Math.sin(garment.angle) * radius;
-        garment.object.rotation.y += 0.025;
+        garment.object.rotation.y += 0.02;
 
         if (garment.mixer) {
             garment.mixer.update(delta);
