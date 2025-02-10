@@ -1,0 +1,65 @@
+[33mcommit 9d88495d2e24c080bef1daeceaa47a3a7b616f5c[m[33m ([m[1;36mHEAD -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m
+Author: 00zel <elizabethgracedowney@gmail.com>
+Date:   Sun Feb 9 00:06:19 2025 -0500
+
+    Updated lighting and added black hdri
+
+[33mcommit 907dc05e40fed0687b4c90d6206eb493083bc790[m
+Author: 00zel <elizabethgracedowney@gmail.com>
+Date:   Fri Feb 7 23:49:30 2025 -0500
+
+    Updated materials to default white, Imported initial spinning animation, Orbit controls, WASD + Spacebar interactivity
+
+[33mcommit 039516282f87bff8cfbc7c8b8035efee9f8b701d[m
+Author: 00zel <elizabethgracedowney@gmail.com>
+Date:   Thu Feb 6 20:17:48 2025 -0500
+
+    Added garment mesh files in orbit
+
+[33mcommit b106d676c89e212af9d7a9946da288e94b7a33b0[m
+Author: 00zel <elizabethgracedowney@gmail.com>
+Date:   Thu Feb 6 19:18:49 2025 -0500
+
+    Updated puffer textures
+
+[33mcommit d35ff4c008cae0ab6db334bdccd17c6faf1216e7[m
+Author: 00zel <elizabethgracedowney@gmail.com>
+Date:   Thu Feb 6 13:26:08 2025 -0500
+
+    Updated initial garment to Puffer
+
+[33mcommit daa62eea9f47459d98f85780e2da8db3c2181427[m
+Author: 00zel <elizabethgracedowney@gmail.com>
+Date:   Sun Feb 2 23:55:33 2025 -0500
+
+    Updated material assignments and fixed texture handling
+
+[33mcommit 2e77697ccad0badb379280a2d635d85cc0ff8134[m
+Author: 00zel <elizabethgracedowney@gmail.com>
+Date:   Sun Feb 2 20:13:09 2025 -0500
+
+    Saving unstaged changes before cleanup
+
+[33mcommit eb5560a8f22620f87897e998b76822e7826f0f1e[m
+Author: 00zel <elizabethgracedowney@gmail.com>
+Date:   Sun Feb 2 18:51:19 2025 -0500
+
+    Added new first garment model
+
+[33mcommit 964d97048357c7f64dce028061d4b260f4cf489f[m
+Author: 00zel <elizabethgracedowney@gmail.com>
+Date:   Sun Feb 2 13:18:03 2025 -0500
+
+    Added Three.js project with LFS support
+
+[33mcommit c59a286f0506766c7e9e4304ea9a0bcbfa28abaa[m
+Author: 00zel <elizabethgracedowney@gmail.com>
+Date:   Sun Feb 2 13:16:43 2025 -0500
+
+    Enable Git LFS for GLB files
+
+[33mcommit 2495458327724e1f62732d1d953290435c04d0a1[m
+Author: 00zel <elizabethgracedowney@gmail.com>
+Date:   Sun Feb 2 13:08:44 2025 -0500
+
+    Initial commit - Three.js project setup

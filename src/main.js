@@ -1,230 +1,204 @@
 // 1️⃣ IMPORTS: Load necessary libraries
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'; // ✅ NEW: Import Orbit Controls
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { gsap } from 'gsap';
 
-// ✅ DECLARING CONSTANTS AT THE TOP
+// ✅ DECLARING CONSTANTS
 let garments = []; // Array to store all garments
-const mixers = []; // Array to store animation mixers
 const clock = new THREE.Clock();
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
-let lastScrollY = window.scrollY;
+let selectedGarment = null; // Track clicked garment
+let movementEnabled = true; // Allow movement before selection
+const keysPressed = {}; // WASD movement keys
+const movementSpeed = 0.1; // WASD movement speed
 
-// ✅ MOVEMENT VARIABLES
-const movementSpeed = 0.0; // ✅ Slow WASD movement speed
-const moveDirection = { forward: 0, right: 0 };
-
-// ✅ CAMERA START POSITION (For Reset)
-const cameraStartPosition = new THREE.Vector3(0, 1.2, 6);
+// ✅ CAMERA START POSITION
+const cameraStartPosition = new THREE.Vector3(0, 1, 4);
 const cameraStartLookAt = new THREE.Vector3(0, 0, 0);
 
-// 2️⃣ SCENE SETUP: Create a Three.js scene
+// 2️⃣ SCENE SETUP
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(0, 1.2, 4);
-camera.lookAt(0, 0, 0);
+camera.position.copy(cameraStartPosition);
+camera.lookAt(new THREE.Vector3(0, 0, 0));
 
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// ✅ 3️⃣ ADD ORBIT CONTROLS (Click & Drag to Move Camera)
+// ✅ ORBIT CONTROLS
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true; // ✅ Smooth camera motion
+controls.enableDamping = true;
 controls.dampingFactor = 0.05;
 controls.screenSpacePanning = false;
-controls.minDistance = 2; // ✅ Prevent zooming too close
-controls.maxDistance = 10; // ✅ Prevent zooming too far
-controls.maxPolarAngle = Math.PI / 2; // ✅ Keep camera above ground
+controls.minDistance = 2;
+controls.maxDistance = 10;
+controls.maxPolarAngle = Math.PI / 2;
 
-// // 3️⃣ LIGHTING: Keep strong lighting for contrast
-// const ambientLight = new THREE.AmbientLight(0x00bcff, 100); // ✅ Increased intensity
-// scene.add(ambientLight);
-
-const directionalLight = new THREE.DirectionalLight(0xf9a5ff, 100);
-directionalLight.position.set(5, 10, 5);
+// ✅ LIGHTING
+const directionalLight = new THREE.DirectionalLight(0xffffff, 100);
+directionalLight.position.set(0, 10, 0);
 scene.add(directionalLight);
 
-// 4️⃣ HDRI BACKGROUND 
+// ✅ HDRI BACKGROUND
 const textureLoader = new THREE.TextureLoader();
 const backgroundTexture = textureLoader.load('/black.jpg');
 scene.background = backgroundTexture;
 
-// 5️⃣ GARMENT FILES
+// ✅ GARMENT FILES
 const garmentFiles = [
     { path: '/Puffer.glb', offset: 0 },
     { path: '/CharaM.glb', offset: 1 },
     { path: '/CharaW.glb', offset: 2 },
     { path: '/Jumpsuit.glb', offset: 3 },
-    { path: '/NB1.glb', offset: 4 },
-    { path: '/Marc.glb', offset: 5 },
-    { path: '/A_CharaM_Spin.glb', offset: 6 },
-    { path: '/CharaW.glb', offset: 7 },
-    { path: '/Jumpsuit.glb', offset: 8 }
+    { path: '/NB1.glb', offset: 4 }
 ];
 
-// 6️⃣ LOAD GARMENTS WITH CUSTOM/DEBUG MATERIAL
+// ✅ LOAD GARMENTS AND POSITION THEM
 function loadGarment(filePath, index) {
     const loader = new GLTFLoader();
-    loader.load(filePath, function (gltf) {
-        const garment = gltf.scene;
+    loader.load(
+        filePath,
+        (gltf) => {
+            const garment = gltf.scene;
 
-        // ✅ APPLYING MATERIAL TO ALL MESHES
-        const whiteMaterial = new THREE.MeshStandardMaterial({
-            color: 0xFFFFFF, 
-            roughness: 0.05, 
-            metalness: 0.99995,
-            side: THREE.DoubleSide // ✅ Ensures both sides render properly
-        });
+            // Assign a default white material for testing
+            const whiteMaterial = new THREE.MeshStandardMaterial({
+                color: 0xFFFFFF,
+                roughness: 0,
+                metalness: 1,
+                side: THREE.DoubleSide,
+            });
 
-        garment.traverse((child) => {
-            if (child.isMesh) {
-                child.material = whiteMaterial;
-            }
-        });
-
-        // POSITION GARMENTS IN ORBIT
-        const radius = 2.5;
-        const angle = (index / garmentFiles.length) * Math.PI * 2;
-        garment.position.set(Math.cos(angle) * radius, 0, Math.sin(angle) * radius); 
-        
-        // ✅ ADDING CLO/MD ANIMATIONS
-        let mixer = null;
-        let animations = {};
-        if (gltf.animations.length > 0) {
-            mixer = new THREE.AnimationMixer(garment);
-            
-            gltf.animations.forEach((clip) => {
-                if (clip.name.includes("FloatUp")) {
-                    animations.floatUp = mixer.clipAction(clip);
-                } else if (clip.name.includes("FloatDown")) {
-                    animations.floatDown = mixer.clipAction(clip);
-                } else if (clip.name.includes("Fall")) {
-                    animations.fall = mixer.clipAction(clip);
+            garment.traverse((child) => {
+                if (child.isMesh) {
+                    child.material = whiteMaterial;
                 }
             });
 
-            mixers.push(mixer);
-        }
+            // Position garments in orbit
+            const radius = 2;
+            const angle = (index / garmentFiles.length) * Math.PI * 2;
+            garment.userData.orbitRadius = radius;
+            garment.userData.orbitAngle = angle;
+            garment.userData.orbitSpeed = 0.002;
 
-        garments.push({ object: garment, angle: angle, mixer: mixer, animations: animations });
-        scene.add(garment);
-    });
+            garment.position.set(
+                Math.cos(angle) * radius,
+                0,
+                Math.sin(angle) * radius
+            );
+
+            garments.push({ object: garment });
+            scene.add(garment);
+        },
+        undefined,
+        (error) => {
+            console.error(`❌ Failed to load garment: ${filePath}`, error);
+        }
+    );
 }
 
-// 7️⃣ LOAD ALL GARMENTS INTO THE SCENE
 garmentFiles.forEach((file, index) => {
     loadGarment(file.path, index);
 });
 
-// ✅ 9️⃣ HANDLE KEYBOARD INPUT (WASD + SPACEBAR)
-document.addEventListener("keydown", (event) => {
-    if (event.key === "w") moveDirection.forward = 1;
-    if (event.key === "s") moveDirection.forward = -1;
-    if (event.key === "a") moveDirection.right = -1;
-    if (event.key === "d") moveDirection.right = 1;
+// ✅ HOVER EFFECT - ADD GLOW & GRADUALLY STOP ORBIT MOVEMENT
+window.addEventListener('mousemove', (event) => {
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(garments.flatMap(g => g.object.children), true);
 
-    // ✅ SPACEBAR → RESET CAMERA POSITION
-    if (event.key === " ") {
-        camera.position.lerp(cameraStartPosition, 0.2); // ✅ Smoothly move camera back
-        camera.lookAt(cameraStartLookAt);
-        controls.target.copy(cameraStartLookAt); // ✅ Reset Orbit Controls Target
-        controls.update();
+    let garmentHovered = false;
+    garments.forEach(g => {
+        g.object.traverse((child) => {
+            if (child.isMesh) {
+                child.material.emissive = new THREE.Color(0x000000); // Reset glow
+            }
+        });
+    });
+
+    if (intersects.length > 0) {
+        let hoveredGarment = intersects[0].object;
+        while (hoveredGarment.parent && hoveredGarment.parent !== scene) {
+            hoveredGarment = hoveredGarment.parent;
+        }
+        garmentHovered = true;
+        hoveredGarment.traverse((child) => {
+            if (child.isMesh) {
+                child.material.emissive = new THREE.Color(0xFF00AE); // Add pink glow
+            }
+        });
+    }
+
+    garments.forEach(garment => {
+        gsap.to(garment.object.userData, { orbitSpeed: garmentHovered ? 0 : 0.002, duration: 1.5 });
+    });
+});
+
+// ✅ WASD MOVEMENT CONTROLS
+window.addEventListener('keydown', (event) => {
+    keysPressed[event.code] = true;
+});
+window.addEventListener('keyup', (event) => {
+    keysPressed[event.code] = false;
+});
+
+function handleMovement() {
+    if (keysPressed['KeyW']) camera.position.z -= movementSpeed;
+    if (keysPressed['KeyS']) camera.position.z += movementSpeed;
+    if (keysPressed['KeyA']) camera.position.x -= movementSpeed;
+    if (keysPressed['KeyD']) camera.position.x += movementSpeed;
+    requestAnimationFrame(handleMovement);
+}
+handleMovement();
+
+// ✅ CLICK EVENT TO MOVE CAMERA TO FRONT OF GARMENT
+window.addEventListener('click', (event) => {
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(garments.flatMap(g => g.object.children), true);
+    
+    if (intersects.length > 0) {
+        let clickedGarment = intersects[0].object;
+        while (clickedGarment.parent && clickedGarment.parent !== scene) {
+            clickedGarment = clickedGarment.parent;
+        }
+        selectedGarment = clickedGarment;
+
+        const garmentFront = new THREE.Vector3();
+        selectedGarment.getWorldPosition(garmentFront);
+
+        const forwardVector = new THREE.Vector3(0, 0, 1);
+        forwardVector.applyQuaternion(selectedGarment.quaternion);
+        garmentFront.add(forwardVector.multiplyScalar(3));
+        garmentFront.add(new THREE.Vector3(0, 1, 0)); // Adjust these values
+
+
+        gsap.to(camera.position, { 
+            x: garmentFront.x, 
+            y: garmentFront.y, 
+            z: garmentFront.z, 
+            duration: 1.5, 
+            onUpdate: () => camera.lookAt(selectedGarment.position) 
+        });
     }
 });
 
-document.addEventListener("keyup", (event) => {
-    if (event.key === "w" || event.key === "s") moveDirection.forward = 0;
-    if (event.key === "a" || event.key === "d") moveDirection.right = 0;
-});
-
-// ✅ 1️⃣0️⃣ ANIMATION LOOP
+// ✅ ANIMATION LOOP
 function animate() {
     requestAnimationFrame(animate);
-    const delta = clock.getDelta();
-
-    // ✅ FIXED WASD MOVEMENT
-    const direction = new THREE.Vector3();
-    camera.getWorldDirection(direction);
-
-    const right = new THREE.Vector3();
-    right.crossVectors(camera.up, direction).normalize();
-
-    const moveStep = movementSpeed * delta * 60; // ✅ Ensures smooth movement
-
-    // ✅ Move in the right direction
-    camera.position.addScaledVector(direction, moveDirection.forward * moveStep);
-    camera.position.addScaledVector(right, moveDirection.right * moveStep);
-
-    controls.update(); // ✅ Keep Orbit Controls Functional
-
     garments.forEach((garment) => {
-        const radius = 3;
-        garment.angle += 0.0015;
-        garment.object.position.x = Math.cos(garment.angle) * radius;
-        garment.object.position.z = Math.sin(garment.angle) * radius;
-        garment.object.rotation.y += 0.02;
-
-        if (garment.mixer) {
-            garment.mixer.update(delta);
-        }
+        garment.object.userData.orbitAngle += garment.object.userData.orbitSpeed;
+        garment.object.position.set(
+            Math.cos(garment.object.userData.orbitAngle) * garment.object.userData.orbitRadius,
+            0,
+            Math.sin(garment.object.userData.orbitAngle) * garment.object.userData.orbitRadius
+        );
     });
-
+    controls.update();
     renderer.render(scene, camera);
 }
 animate();
-
-
-/** 
- * 🔥 SCROLL INTERACTION - PLAY CLO/MD FLOATING ANIMATIONS
- */
-function getClosestGarment() {
-    let closestGarment = null;
-    let closestDistance = Infinity;
-
-    garments.forEach((garment) => {
-        const distance = camera.position.distanceTo(garment.object.position);
-        if (distance < closestDistance) {
-            closestDistance = distance;
-            closestGarment = garment;
-        }
-    });
-
-    return closestGarment;
-}
-
-window.addEventListener('scroll', () => {
-    const scrollDirection = window.scrollY > lastScrollY ? 'down' : 'up';
-    lastScrollY = window.scrollY;
-
-    const closestGarment = getClosestGarment();
-
-    if (closestGarment && closestGarment.animations) {
-        if (scrollDirection === 'up' && closestGarment.animations.floatUp) {
-            closestGarment.animations.floatUp.reset().play();
-        } else if (scrollDirection === 'down' && closestGarment.animations.floatDown) {
-            closestGarment.animations.floatDown.reset().play();
-        }
-    }
-});
-
-/** 
- * 🔥 CLICK INTERACTION - PLAY CLO/MD FALLING ANIMATION
- */
-window.addEventListener('click', (event) => {
-    raycaster.setFromCamera(mouse, camera);
-    const intersects = raycaster.intersectObjects(scene.children, true);
-
-    if (intersects.length > 0) {
-        const clickedGarment = intersects[0].object.parent;
-
-        if (clickedGarment.animations && clickedGarment.animations.fall) {
-            clickedGarment.animations.fall.reset().play();
-        }
-    }
-});
-
-/** 
- * 🔥 HOVER INTERACTION (TBD - Leaving Empty for Now)
- */
