@@ -2,27 +2,32 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { OutlinePass } from 'three/examples/jsm/postprocessing/OutlinePass.js';
+import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { gsap } from 'gsap';
 
 // ✅ DECLARING CONSTANTS
-let garments = []; // Array to store all garments
+let garments = [];
 const clock = new THREE.Clock();
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
-let selectedGarment = null; // Track clicked garment
-let movementEnabled = true; // Allow movement before selection
-const keysPressed = {}; // WASD movement keys
-const movementSpeed = 0.1; // WASD movement speed
+let selectedGarment = null;
+let movementEnabled = true;
+const keysPressed = {};
+const movementSpeed = 0.1;
 
 // ✅ CAMERA START POSITION
-const cameraStartPosition = new THREE.Vector3(0, 1, 4);
+const cameraStartPosition = new THREE.Vector3(0, 1.2, 6);
 const cameraStartLookAt = new THREE.Vector3(0, 0, 0);
 
 // 2️⃣ SCENE SETUP
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.copy(cameraStartPosition);
-camera.lookAt(new THREE.Vector3(0, 0, 0));
+camera.lookAt(cameraStartLookAt);
 
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -44,8 +49,19 @@ scene.add(directionalLight);
 
 // ✅ HDRI BACKGROUND
 const textureLoader = new THREE.TextureLoader();
-const backgroundTexture = textureLoader.load('/black.jpg');
+const backgroundTexture = textureLoader.load('/black.png');
 scene.background = backgroundTexture;
+
+// ✅ POST PROCESSING SETUP FOR GLOW EFFECT
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+
+const outlinePass = new OutlinePass(new THREE.Vector2(window.innerWidth, window.innerHeight), scene, camera);
+outlinePass.edgeStrength = 1.2;
+outlinePass.edgeGlow = 10;
+outlinePass.edgeThickness = 70;
+outlinePass.visibleEdgeColor.set(0xff00ae);
+composer.addPass(outlinePass);
 
 // ✅ GARMENT FILES
 const garmentFiles = [
@@ -62,23 +78,30 @@ function loadGarment(filePath, index) {
     loader.load(
         filePath,
         (gltf) => {
+            console.log(`Loaded ${filePath}`, gltf.animations); // Debugging animation data
             const garment = gltf.scene;
+            const animations = gltf.animations; // Get animations
+            const mixer = new THREE.AnimationMixer(garment); // Create an animation mixer
 
-            // Assign a default white material for testing
-            const whiteMaterial = new THREE.MeshStandardMaterial({
-                color: 0xFFFFFF,
-                roughness: 0,
-                metalness: 1,
-                side: THREE.DoubleSide,
-            });
+            if (animations.length > 0) {
+                const action = mixer.clipAction(animations[0]); // Play first animation
+                action.setLoop(THREE.LoopRepeat);
+                garment.userData.mixer = mixer;
+                garment.userData.action = action;
+                action.play();
+            }
 
             garment.traverse((child) => {
                 if (child.isMesh) {
-                    child.material = whiteMaterial;
+                    child.material = new THREE.MeshStandardMaterial({
+                        color: 0xFFFFFF,
+                        roughness: 0,
+                        metalness: 1,
+                        side: THREE.DoubleSide,
+                    });
                 }
             });
 
-            // Position garments in orbit
             const radius = 2;
             const angle = (index / garmentFiles.length) * Math.PI * 2;
             garment.userData.orbitRadius = radius;
@@ -91,7 +114,7 @@ function loadGarment(filePath, index) {
                 Math.sin(angle) * radius
             );
 
-            garments.push({ object: garment });
+            garments.push({ object: garment, mixer });
             scene.add(garment);
         },
         undefined,
@@ -105,38 +128,22 @@ garmentFiles.forEach((file, index) => {
     loadGarment(file.path, index);
 });
 
-// ✅ HOVER EFFECT - ADD GLOW & GRADUALLY STOP ORBIT MOVEMENT
-window.addEventListener('mousemove', (event) => {
-    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+// ✅ CLICK EVENT 
+window.addEventListener('click', (event) => {
     raycaster.setFromCamera(mouse, camera);
     const intersects = raycaster.intersectObjects(garments.flatMap(g => g.object.children), true);
 
-    let garmentHovered = false;
-    garments.forEach(g => {
-        g.object.traverse((child) => {
-            if (child.isMesh) {
-                child.material.emissive = new THREE.Color(0x000000); // Reset glow
-            }
-        });
-    });
-
     if (intersects.length > 0) {
-        let hoveredGarment = intersects[0].object;
-        while (hoveredGarment.parent && hoveredGarment.parent !== scene) {
-            hoveredGarment = hoveredGarment.parent;
+        let clickedGarment = intersects[0].object;
+        while (clickedGarment.parent && clickedGarment.parent !== scene) {
+            clickedGarment = clickedGarment.parent;
         }
-        garmentHovered = true;
-        hoveredGarment.traverse((child) => {
-            if (child.isMesh) {
-                child.material.emissive = new THREE.Color(0xFF00AE); // Add pink glow
-            }
-        });
-    }
+        selectedGarment = clickedGarment;
 
-    garments.forEach(garment => {
-        gsap.to(garment.object.userData, { orbitSpeed: garmentHovered ? 0 : 0.002, duration: 1.5 });
-    });
+        console.log(`Clicked on: ${clickedGarment.name}`);
+        // Placeholder for new dissolving effect
+    }
 });
 
 // ✅ WASD MOVEMENT CONTROLS
@@ -156,49 +163,105 @@ function handleMovement() {
 }
 handleMovement();
 
-// ✅ CLICK EVENT TO MOVE CAMERA TO FRONT OF GARMENT
-window.addEventListener('click', (event) => {
+// ✅ HOVER EFFECT - OUTLINE GLOW + STOP MOVEMENT
+window.addEventListener('mousemove', (event) => {
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
     raycaster.setFromCamera(mouse, camera);
     const intersects = raycaster.intersectObjects(garments.flatMap(g => g.object.children), true);
-    
+
+    outlinePass.selectedObjects = [];
+    let garmentHovered = false;
+
+    garments.forEach(garment => {
+        garment.object.userData.isHovered = false; // ✅ Reset all garments
+    });
+
     if (intersects.length > 0) {
-        let clickedGarment = intersects[0].object;
-        while (clickedGarment.parent && clickedGarment.parent !== scene) {
-            clickedGarment = clickedGarment.parent;
+        let hoveredGarment = intersects[0].object;
+        while (hoveredGarment.parent && hoveredGarment.parent !== scene) {
+            hoveredGarment = hoveredGarment.parent;
         }
-        selectedGarment = clickedGarment;
+        outlinePass.selectedObjects = [hoveredGarment];
 
-        const garmentFront = new THREE.Vector3();
-        selectedGarment.getWorldPosition(garmentFront);
-
-        const forwardVector = new THREE.Vector3(0, 0, 1);
-        forwardVector.applyQuaternion(selectedGarment.quaternion);
-        garmentFront.add(forwardVector.multiplyScalar(3));
-        garmentFront.add(new THREE.Vector3(0, 1, 0)); // Adjust these values
-
-
-        gsap.to(camera.position, { 
-            x: garmentFront.x, 
-            y: garmentFront.y, 
-            z: garmentFront.z, 
-            duration: 1.5, 
-            onUpdate: () => camera.lookAt(selectedGarment.position) 
+        // ✅ Find the correct garment object & update hover state
+        garments.forEach(garment => {
+            if (garment.object === hoveredGarment) {
+                gsap.to(garment.object.userData, { isHovered: true, duration: 0.1 }); // ✅ Smooth transition in 0.5s
+            } else {
+                gsap.to(garment.object.userData, { isHovered: false, duration: 0.1 });
+            }
         });
+
+        console.log(`Hovered Garment: ${hoveredGarment.name}, isHovered: ${hoveredGarment.userData.isHovered}`); // ✅ Debugging log
+        garmentHovered = true;
     }
+
+    garments.forEach(garment => {
+        gsap.to(garment.object.userData, { orbitSpeed: garmentHovered ? 0 : 0.002, duration: 1.5 });
+    });
 });
+
 
 // ✅ ANIMATION LOOP
 function animate() {
     requestAnimationFrame(animate);
-    garments.forEach((garment) => {
-        garment.object.userData.orbitAngle += garment.object.userData.orbitSpeed;
-        garment.object.position.set(
-            Math.cos(garment.object.userData.orbitAngle) * garment.object.userData.orbitRadius,
-            0,
-            Math.sin(garment.object.userData.orbitAngle) * garment.object.userData.orbitRadius
-        );
-    });
-    controls.update();
-    renderer.render(scene, camera);
+    const delta = clock.getDelta(); // Time difference per frame
+
+    // ✅ Check if ANY garment is hovered
+    const anyHovered = garments.some(g => g.object.userData.isHovered);
+
+    garments.forEach(({ object }, index) => {
+        // ✅ Ensure each garment has a unique initial rotation offset
+        if (object.userData.rotationOffset === undefined) {
+            object.userData.rotationOffset = Math.random() * Math.PI * 2; // Unique staggered offset
+        }
+
+        // ✅ Define base speeds
+        const baseOrbitSpeed = 0.002; // Normal orbit speed
+        const baseRotationSpeed = 0.5; // ✅ Uniform rotation speed for all garments
+        const hoverSlowdownSpeed = 0.1; // Slower rotation when hovered
+        const stopSpeed = 0.0; // Fully stop orbit when any garment is hovered
+
+        // ✅ If any garment is hovered, stop ALL orbiting
+        const targetOrbitSpeed = anyHovered ? stopSpeed : baseOrbitSpeed;
+        object.userData.orbitSpeed = THREE.MathUtils.lerp(object.userData.orbitSpeed || baseOrbitSpeed, targetOrbitSpeed, 0.1);
+
+        // ✅ Ensure all garments have the same rotation speed (while maintaining staggered offsets)
+        if (object.userData.rotationSpeed === undefined) {
+            object.userData.rotationSpeed = baseRotationSpeed; // Set the same speed for all
+        }
+
+ // ✅ Ensure ALL garments rotate at the EXACT same speed
+const fixedRotationSpeed = 0.5; // Set a fixed, uniform speed for all garments
+
+if (object.userData.rotationSpeed === undefined) {
+    object.userData.rotationSpeed = 0.5; // Set uniform rotation speed for all
 }
+
+// ✅ Ensure only the hovered garment slows down while others continue at normal speed
+if (object.userData.rotationSpeed === undefined) {
+    object.userData.rotationSpeed = 0.5; // Set a uniform default speed for all
+}
+
+const targetRotationSpeed = object.userData.isHovered ? 0.1 : 0.5; // Slow down only hovered garment
+object.userData.rotationSpeed = THREE.MathUtils.lerp(object.userData.rotationSpeed, targetRotationSpeed, 0.01);
+
+        // ✅ Apply orbit movement (stops for all if any garment is hovered)
+        object.userData.orbitAngle += object.userData.orbitSpeed;
+        object.position.set(
+            Math.cos(object.userData.orbitAngle) * object.userData.orbitRadius,
+            0,
+            Math.sin(object.userData.orbitAngle) * object.userData.orbitRadius
+        );
+
+        // ✅ Apply self-rotation (ALL garments should rotate unless hovered)
+        object.rotation.y += delta * object.userData.rotationSpeed + Math.sin(object.userData.rotationOffset) * 0.01;
+    });
+
+    controls.update();
+    composer.render();
+}
+
+
 animate();
