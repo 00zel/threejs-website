@@ -12,7 +12,6 @@ import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader.js';
 
 
-
 // ✅ DECLARING CONSTANTS
 let garments = [];
 const clock = new THREE.Clock();
@@ -23,6 +22,7 @@ let movementEnabled = true;
 const keysPressed = {};
 const movementSpeed = 0.1;
 let avatarReplaced = false; // Flag to track if the avatar has been replaced
+
 
 // ✅ CAMERA START POSITION
 const cameraStartPosition = new THREE.Vector3(0, 1.2, 6);
@@ -52,12 +52,19 @@ controls.maxDistance = 10;
 controls.maxPolarAngle = Math.PI / 2;
 
 // ✅ LIGHTING
-// const directionalLight = new THREE.DirectionalLight(0xffffff, 100);
-// directionalLight.position.set(0, 10, 0);
-// scene.add(directionalLight);
 
 const ambientLight = new THREE.AmbientLight(0xFFFFFF, 1); // Soft white light
 scene.add(ambientLight);
+
+
+function createCustomMaterial() {
+    return new THREE.MeshStandardMaterial({
+        color: 0xfddeff, // Pink color
+        roughness: 0.5,  // Roughness value
+        metalness: 0.5,  // Metalness value
+        side: THREE.DoubleSide, // Double-sided material
+    });
+}
 
 // ✅ FUNCTION TO LOAD THE AVATAR
 function loadAvatar() {
@@ -75,9 +82,6 @@ function loadAvatar() {
                     console.error("❌ Avatar OBJ failed to load.");
                     return;
                 }
-
-                console.log("✅ Avatar successfully loaded!");
-
                 const avatar = obj;
 
                 // ✅ Scale & Position Avatar
@@ -89,12 +93,10 @@ function loadAvatar() {
                 keyLight.position.set(2, 5, 5);
                 keyLight.castShadow = true;
 
-                // intensity, distance, decay
-
-                const rimLight = new THREE.PointLight(0xffe6ff, 10, 10, 2);
+                const rimLight = new THREE.PointLight(0xfddeff, 10, 10, 2);
                 rimLight.position.set(-1, 3, -2);
 
-                const fillLight = new THREE.PointLight(0x888888, 2, 10, 2);
+                const fillLight = new THREE.PointLight(0xfddeff, 2, 10, 2);
                 fillLight.position.set(0, 2, -3);
 
                 avatar.add(keyLight, rimLight, fillLight);
@@ -111,25 +113,181 @@ function loadAvatar() {
         );
     },
     (error) => {
-        console.error("❌ Failed to load Avatar MTL:", error);
     });
 }
 
-function replaceAvatar(garment) {
+
+// ✅ FUNCTION TO APPLY GLOW TO BASE AVATAR
+function applyGlowToBaseAvatar() {
+    if (!window.avatar) return;
+
+    outlinePass.selectedObjects = [window.avatar];
+
+    // ✅ Gradually increase glow
+    gsap.fromTo(outlinePass, 
+        { edgeStrength: 1.5 },  // Start with medium glow
+        { edgeStrength: 3.5, duration: 1.5, ease: "power2.out" } // Max glow
+    );
+
+    // ✅ Fade out the glow after 2 seconds
+    setTimeout(() => {
+        fadeOutGlowEffect(window.avatar, 2.0);
+    }, 2000);
+}
+
+// ✅ FUNCTION TO FADE OUT GLOW
+function fadeOutGlowEffect(object, duration = 2.0) {
+    if (!object) return;
+
+    gsap.to(outlinePass, {
+        edgeStrength: 0,  
+        duration: duration,  
+        ease: "power2.out", 
+        onComplete: () => {
+            outlinePass.selectedObjects = [];
+        }
+    });
+}
+
+window.addEventListener('click', (event) => {
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(garments.map(g => g.object), true);
+
+    if (intersects.length > 0) {
+        let clickedGarment = intersects[0].object;
+
+        // ✅ Traverse up to find the main garment group
+        while (clickedGarment.parent && clickedGarment.parent !== scene) {
+            clickedGarment = clickedGarment.parent;
+        }
+        selectedGarment = clickedGarment;
+
+        console.log("🧐 Selected Garment Object:", selectedGarment);
+        console.log("🧐 Selected Garment Name:", selectedGarment?.name);
+        console.log("🧐 Parent Name:", selectedGarment?.parent?.name);
+        console.log("🧐 Full Object Structure:", selectedGarment);
+
+        // ✅ Extract a valid garment name
+        let garmentName = selectedGarment.name?.trim().toLowerCase() || "";
+
+        // 🔍 If the name is empty, check the parent
+        if (!garmentName && selectedGarment.parent) {
+            console.warn("⚠️ No valid garment name found. Checking parent...");
+            garmentName = selectedGarment.parent.name?.trim().toLowerCase() || "";
+        }
+
+        // 🔍 If still empty, check children
+        if (!garmentName && selectedGarment.children.length > 0) {
+            console.warn("⚠️ No name found. Checking first child...");
+            garmentName = selectedGarment.children[0].name?.trim().toLowerCase() || "";
+        }
+
+        // 🔍 If still empty, fallback to file path
+        if (!garmentName && selectedGarment.userData.sourceFile) {
+            console.warn("⚠️ Using file path as name...");
+            garmentName = selectedGarment.userData.sourceFile.split('/').pop().split('.')[0].toLowerCase();
+        }
+
+        console.log(`✅ Extracted Garment Name: "${garmentName}"`);
+
+        // 🛑 **Prevent selecting an empty name**
+        if (!garmentName) {
+            console.error("❌ Cannot determine garment name. Skipping posed avatar replacement.");
+            return;
+        }
+
+        // ✅ Hide all other garments
+        garments.forEach(({ object }) => {
+            object.visible = (object === selectedGarment);
+            object.userData.isClickable = (object === selectedGarment);
+        });
+
+        // ✅ Disable clicking on hidden garments
+        garments = garments.filter(({ object }) => object.userData.isClickable);
+
+        // 🔍 **Find the correct posed avatar**
+        let posedAvatarUrl = garmentToPosedAvatarMap[garmentName];
+
+        if (!posedAvatarUrl) {
+            console.warn(`❌ No exact match found for "${garmentName}". Checking fuzzy matches...`);
+
+            Object.keys(garmentToPosedAvatarMap).forEach(key => {
+                if (garmentName.includes(key) || key.includes(garmentName)) {
+                    posedAvatarUrl = garmentToPosedAvatarMap[key];
+                    console.log(`✅ Fuzzy match found: "${garmentName}" -> "${key}"`);
+                }
+            });
+        }
+
+        // ✅ Only replace the avatar if a valid match is found
+        if (posedAvatarUrl) {
+            console.log(`🧵 Replacing with posed avatar: ${posedAvatarUrl}`);
+            replaceAvatar(selectedGarment, posedAvatarUrl);
+            avatarReplaced = true;
+        } else {
+            console.error(`❌ No posed avatar found for garment: "${garmentName}"`);
+            console.log(`🔎 Available Keys:`, Object.keys(garmentToPosedAvatarMap));
+        }
+    } else {
+        console.warn("❌ No garment detected under the click.");
+    }
+});
+
+
+
+
+// Function to add glow effect to the avatar --- this is the rececing glow
+function addGlowEffect(object) {
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+
+    const outlinePass = new OutlinePass(new THREE.Vector2(window.innerWidth, window.innerHeight), scene, camera);
+    outlinePass.edgeStrength = 25;
+    outlinePass.edgeGlow = 10;
+    outlinePass.edgeThickness = 1.0;
+    outlinePass.visibleEdgeColor.set(0xfddeff);
+    outlinePass.hiddenEdgeColor.set(0x000000);
+    outlinePass.selectedObjects = [object];
+    composer.addPass(outlinePass);
+
+                function addGlowEffect(object) {
+            outlinePass.selectedObjects = [object];
+        }
+        
+        function removeGlowEffect() {
+            outlinePass.selectedObjects = [];
+        }
+           function fadeOutGlowEffect(object, duration) {
+        gsap.to(outlinePass, {
+            edgeStrength: 0,  
+            duration: duration / 100,  // Convert milliseconds to seconds
+            ease: "power3.out", 
+            onComplete: () => {
+                outlinePass.selectedObjects = [];  // Remove glow effect
+            }
+        });
+    }
+}
+
+// Function to replace the avatar with the clicked garment
+
+function replaceAvatar(garment, posedAvatarUrl) {
     if (window.avatar) {
         scene.remove(window.avatar); // Remove the current avatar from the scene
-        window.avatar = null; // Clear the reference to the current avatar
+        window.avatar = null;
     }
 
+    console.log(`✅ Loading posed avatar from: ${posedAvatarUrl}`);
+
     const loader = new GLTFLoader();
-    loader.load('/public/Jumpsuit_Posed.glb', (gltf) => {
+    loader.load(posedAvatarUrl, (gltf) => {
         const avatar = gltf.scene;
 
-        // ✅ Scale & Position Avatar
-        avatar.scale.set(2, 2, 2);
+        // ✅ Position & Scale Avatar
+        avatar.scale.set(0.018, 0.018,0.018);
         avatar.position.set(0, -0.5, 0);
 
-        // ✅ ATTACH LIGHTS TO THE AVATAR
+        // ✅ Attach Lights
         const keyLight = new THREE.DirectionalLight(0xffffff, 5);
         keyLight.position.set(2, 5, 5);
         keyLight.castShadow = true;
@@ -145,50 +303,19 @@ function replaceAvatar(garment) {
         window.avatar = avatar;
         scene.add(avatar);
 
-        // Apply the clicked garment to the avatar
-        if (garment) {
-            garment.traverse((child) => {
-                if (child.isMesh) {
-                    avatar.traverse((avatarChild) => {
-                        if (avatarChild.isMesh && avatarChild.name === child.name) {
-                            avatarChild.material = child.material;
-                        }
-                    });
-                }
-            });
-        }
-
-        applyMaterialToAvatar();
-    }, undefined, (error) => {
-        console.error("❌ Failed to load Avatar GLB:", error);
-    });
+        // ✅ Add glow effect to new posed avatar
+        applyGlowEffect(avatar);
+    }, undefined, (error) => {    });
 }
 
-window.addEventListener('click', (event) => {
-    if (avatarReplaced) return; // Prevent further interactions if the avatar has already been replaced
-
-    raycaster.setFromCamera(mouse, camera);
-    const intersects = raycaster.intersectObjects(garments.map(g => g.object), true);
-
-    if (intersects.length > 0) {
-        let clickedGarment = intersects[0].object;
-        while (clickedGarment.parent && clickedGarment.parent !== scene) {
-            clickedGarment = clickedGarment.parent;
-        }
-        selectedGarment = clickedGarment;
-
-        // ✅ Instantly hide all other garments except the selected one
-        garments.forEach(({ object }) => {
-            object.visible = (object === selectedGarment);
-        });
-
-        // Replace the avatar with the clicked garment
-        replaceAvatar(clickedGarment);
-
-        avatarReplaced = true; // Set the flag to true after replacing the avatar
-    }
-});
-
+// Mapping between garments and their associated posed avatars
+const garmentToPosedAvatarMap = {
+    'jumpsuit': '/public/Jumpsuit_Posed.glb',
+    'charam': '/public/CharaM_Posed.glb',
+    'charaw': '/public/CharaW_Posed.glb',
+    'puffer': '/public/Puffer_Posed.glb',
+    'nb1': '/public/NB1_Posed.glb'
+};
 
 // ✅ CALL THE FUNCTION TO LOAD THE AVATAR
 loadAvatar();
@@ -196,7 +323,7 @@ loadAvatar();
 
 // ✅ HDRI BACKGROUND
 const textureLoader = new THREE.TextureLoader();
-const backgroundTexture = textureLoader.load('/black.png');
+const backgroundTexture = textureLoader.load('/white.png');
 scene.background = backgroundTexture;
 
 // ✅ POST PROCESSING SETUP FOR GLOW EFFECT
@@ -265,7 +392,7 @@ function applyMaterialToAvatar() {
             child.material = new THREE.MeshStandardMaterial({
                 color: 0xffffff, // Default white color
                 roughness: 0,  
-                metalness: 0.1,  
+                metalness: 0.8,  
                 side: THREE.DoubleSide,
             });
 
@@ -353,8 +480,15 @@ function loadGarment(filePath, index) {
 
             garment.traverse((child) => {
                 if (child.isMesh) {
-                    console.log(`🎨 Applying material to: ${child.name}`, child.material);
-                    applyMaterialMaps(child, garmentMaterialMaps);
+                    // ✅ If it's the Jumpsuit, override material with editable basic material
+                    if (garmentName === "Jumpsuit") {
+                        child.material = new THREE.MeshStandardMaterial({
+                            color: 0xfddeff, // Green color
+                            roughness: 1,
+                            metalness: 0.5,
+                            side: THREE.DoubleSide,
+                        });
+                    }
                 }
             });
   // ✅ CREATE LIGHTS FOR GARMENT
@@ -364,7 +498,7 @@ function loadGarment(filePath, index) {
   const highlightLight = new THREE.PointLight(0xE5CDFF, 2, 10, 2); // Extra Highlight
 
   // ✅ Position lights relative to the garment
-  primaryLight.position.set(0.75, 0.75, 0.75);
+  primaryLight.position.set(0, 0, 0);
   secondaryLight1.position.set(-0.5, 1, -0.5);
   secondaryLight2.position.set(0.5, 1, -0.5);
   highlightLight.position.set(0, 3, 0);
@@ -400,27 +534,6 @@ function loadGarment(filePath, index) {
 garmentFiles.forEach((file, index) => {
     loadGarment(file.path, index);
 });
-
-
-// ✅ CLICK EVENT 
-window.addEventListener('click', (event) => {
-    raycaster.setFromCamera(mouse, camera);
-    const intersects = raycaster.intersectObjects(garments.map(g => g.object), true);
-
-    if (intersects.length > 0) {
-        let clickedGarment = intersects[0].object;
-        while (clickedGarment.parent && clickedGarment.parent !== scene) {
-            clickedGarment = clickedGarment.parent;
-        }
-        selectedGarment = clickedGarment;
-
-        // ✅ Instantly hide all other garments except the selected one
-        garments.forEach(({ object }) => {
-            object.visible = (object === selectedGarment);
-        });
-    }
-});
-
 
 
 // ✅ WASD MOVEMENT CONTROLS
@@ -488,36 +601,28 @@ composer.addPass(outlinePass);
 
 // ✅ CLICK-AND-HOLD EFFECT: Gradually Increase Glow
 window.addEventListener('mousedown', (event) => {
+    if (avatarReplaced) return; // Prevent further interactions if the avatar has already been replaced
+
     raycaster.setFromCamera(mouse, camera);
-    const intersects = raycaster.intersectObjects(garments.flatMap(g => g.object.children), true);
+    const intersects = raycaster.intersectObjects(garments.map(g => g.object), true);
 
     if (intersects.length > 0) {
         let clickedGarment = intersects[0].object;
         while (clickedGarment.parent && clickedGarment.parent !== scene) {
             clickedGarment = clickedGarment.parent;
         }
+        selectedGarment = clickedGarment;
 
-        // ✅ Keep hover glow active and add click effect
-        if (!outlinePass.selectedObjects.includes(clickedGarment)) {
-            outlinePass.selectedObjects.push(clickedGarment);
-        }
-
-        let glowIntensity = outlinePass.edgeStrength;
-        let maxGlow = 1; // ✅ Set maximum intensity for the click effect
-
-        // ✅ Gradually increase glow over time
-        let glowInterval = setInterval(() => {
-            if (glowIntensity < maxGlow) {
-                glowIntensity += 0.05; // ✅ Smoother, gradual increase
-                outlinePass.edgeStrength = glowIntensity;
-            }
-        }, 100); // Increase every 100ms
-
-        // ✅ Stop increasing glow when releasing the mouse
-        window.addEventListener('mouseup', () => {
-            clearInterval(glowInterval);
-        }, { once: true });
+        // ✅ Instantly hide all other garments except the selected one
+        garments.forEach(({ object }) => {
+            object.visible = (object === selectedGarment);
+        });
     }
+});
+
+window.addEventListener('mouseup', (event) => {
+// Fade out the glow effect when the mouse button is released
+fadeOutGlowEffect(window.avatar, 1000); // Adjust the duration as needed
 });
 
 
