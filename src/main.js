@@ -1,4 +1,4 @@
-// 1️⃣ IMPORTS: Load necessary libraries
+// IMPORTS: Load necessary libraries
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -10,9 +10,11 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { gsap } from 'gsap';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader.js';
+import Stats from 'https://cdn.skypack.dev/stats.js';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 
 
-// ✅ DECLARING CONSTANTS
+//  DECLARING CONSTANTS
 let garments = [];
 const clock = new THREE.Clock();
 const raycaster = new THREE.Raycaster();
@@ -22,27 +24,43 @@ let movementEnabled = true;
 const keysPressed = {};
 const movementSpeed = 0.1;
 let avatarReplaced = false; // Flag to track if the avatar has been replaced
+let currentHoveredGarment = null;
+const BASE_ORBIT_SPEED = 0.002;
+const BASE_ROTATION_SPEED = 1;
+let garmentSelected = false; // Add this flag at the top with your other constants
+const loadingManager = new THREE.LoadingManager();
+const dracoLoader = new DRACOLoader(loadingManager);
+dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/'); // Use CDN path
+const gltfLoader = new GLTFLoader(loadingManager);
+gltfLoader.setDRACOLoader(dracoLoader);
 
 
-// ✅ CAMERA START POSITION
+// Create a new Stats instance.
+const stats = new Stats();
+// Optionally, set which panel to show:
+// 0: fps, 1: ms, 2: mb, 3+: custom
+stats.showPanel(0); 
+
+// Append the stats DOM element to the body.
+document.body.appendChild(stats.dom);
+
+// CAMERA START POSITION
 const cameraStartPosition = new THREE.Vector3(0, 1.2, 6);
 const cameraStartLookAt = new THREE.Vector3(0, 0, 0);
 
-// 2️⃣ SCENE SETUP
+// SCENE SETUP
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
 
-// ✅ CAMERA SETUP (ensure it looks at the origin )
+// CAMERA SETUP (ensure it looks at the origin )
 camera.position.set(0, 1.2, 6);  // Position camera at (0, 1.2, 6), making it look at the center of the scene
 camera.lookAt(new THREE.Vector3(0, 0, 0));  // Make sure it looks at the origin (0, 0, 0)
-
 
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-
-// ✅ ORBIT CONTROLS
+//ORBIT CONTROLS
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
@@ -51,10 +69,10 @@ controls.minDistance = 2;
 controls.maxDistance = 10;
 controls.maxPolarAngle = Math.PI / 2;
 
-// ✅ LIGHTING
+// LIGHTING
 
-const ambientLight = new THREE.AmbientLight(0xFFFFFF, 1); // Soft white light
-scene.add(ambientLight);
+// const ambientLight = new THREE.AmbientLight(0xFFFFFF, 1); // Soft white light
+// scene.add(ambientLight);
 
 
 function createCustomMaterial() {
@@ -66,76 +84,70 @@ function createCustomMaterial() {
     });
 }
 
-// ✅ FUNCTION TO LOAD THE AVATAR
+// FUNCTION TO LOAD THE AVATAR
+// Replace the existing loadAvatar function with this one
 function loadAvatar() {
-    const mtlLoader = new MTLLoader();
+    gltfLoader.load(  // Use gltfLoader instead of creating a new GLTFLoader
+        '/public/Avatar_Base2.glb',
+        (gltf) => {
+            const avatar = gltf.scene;
+            
+            // Scale & Position Avatar
+            avatar.scale.set(0.008, 0.008, 0.008);
+            avatar.position.set(0, -0.5, 0);
 
-    mtlLoader.load('/public/Avatar_Base.mtl', (materials) => {
-        materials.preload();
+            // ATTACH LIGHTS TO THE AVATAR
+            const keyLight = new THREE.DirectionalLight(0xffffff, 1, 10, 2);
+            keyLight.position.set(2, 5, 5);
+            keyLight.castShadow = true;
 
-        const objLoader = new OBJLoader();
-        objLoader.setMaterials(materials);
-        objLoader.load(
-            '/public/Avatar_Base.obj',
-            (obj) => {
-                if (!obj) {
-                    console.error("❌ Avatar OBJ failed to load.");
-                    return;
+            const rimLight = new THREE.PointLight(0xffffff, 1, 10, 2);
+            rimLight.position.set(-1, 3, -2);
+
+            const fillLight = new THREE.PointLight(0xffffff, 1, 10, 2);
+            fillLight.position.set(0, 2, -3);
+
+            avatar.add(keyLight, rimLight, fillLight);
+
+            window.avatar = avatar;
+            scene.add(avatar);
+
+            // Log materials for debugging
+            avatar.traverse((child) => {
+                if (child.isMesh) {
+                    console.log(`🎨 Loaded mesh: ${child.name}`, child.material);
                 }
-                const avatar = obj;
-
-                // ✅ Scale & Position Avatar
-                avatar.scale.set(0.02, 0.02, 0.02);
-                avatar.position.set(0, -1, 0);
-
-                // ✅ ATTACH LIGHTS TO THE AVATAR
-                const keyLight = new THREE.DirectionalLight(0xffffff, 5);
-                keyLight.position.set(2, 5, 5);
-                keyLight.castShadow = true;
-
-                const rimLight = new THREE.PointLight(0xfddeff, 10, 10, 2);
-                rimLight.position.set(-1, 3, -2);
-
-                const fillLight = new THREE.PointLight(0xfddeff, 2, 10, 2);
-                fillLight.position.set(0, 2, -3);
-
-                avatar.add(keyLight, rimLight, fillLight);
-
-                window.avatar = avatar;
-                scene.add(avatar);
-
-                applyMaterialToAvatar();
-            },
-            undefined,
-            (error) => {
-                console.error("❌ Failed to load Avatar OBJ:", error);
-            }
-        );
-    },
-    (error) => {
-    });
+            });
+        },
+        (progress) => {
+            console.log(`Loading avatar: ${(progress.loaded / progress.total * 100).toFixed(2)}%`);
+        },
+        (error) => {
+            console.error("❌ Failed to load Avatar GLB:", error);
+        }
+    );
 }
 
 
-// ✅ FUNCTION TO APPLY GLOW TO BASE AVATAR
+// FUNCTION TO APPLY GLOW TO BASE AVATAR
 function applyGlowToBaseAvatar() {
     if (!window.avatar) return;
 
     outlinePass.selectedObjects = [window.avatar];
 
-    // ✅ Gradually increase glow
+    // Gradually increase glow
     gsap.fromTo(outlinePass, 
         { edgeStrength: 1.5 },  // Start with medium glow
         { edgeStrength: 3.5, duration: 1.5, ease: "power2.out" } // Max glow
     );
 
-    // ✅ Fade out the glow after 2 seconds
+    // Fade out the glow after 2 seconds
     setTimeout(() => {
         fadeOutGlowEffect(window.avatar, 2.0);
     }, 2000);
 }
 
-// ✅ FUNCTION TO FADE OUT GLOW
+//  FUNCTION TO FADE OUT GLOW
 function fadeOutGlowEffect(object, duration = 2.0) {
     if (!object) return;
 
@@ -156,7 +168,7 @@ window.addEventListener('click', (event) => {
     if (intersects.length > 0) {
         let clickedGarment = intersects[0].object;
 
-        // ✅ Traverse up to find the main garment group
+        // Traverse up to find the main garment group
         while (clickedGarment.parent && clickedGarment.parent !== scene) {
             clickedGarment = clickedGarment.parent;
         }
@@ -167,7 +179,7 @@ window.addEventListener('click', (event) => {
         console.log("🧐 Parent Name:", selectedGarment?.parent?.name);
         console.log("🧐 Full Object Structure:", selectedGarment);
 
-        // ✅ Extract a valid garment name
+        // Extract a valid garment name
         let garmentName = selectedGarment.name?.trim().toLowerCase() || "";
 
         // 🔍 If the name is empty, check the parent
@@ -188,7 +200,7 @@ window.addEventListener('click', (event) => {
             garmentName = selectedGarment.userData.sourceFile.split('/').pop().split('.')[0].toLowerCase();
         }
 
-        console.log(`✅ Extracted Garment Name: "${garmentName}"`);
+        console.log(`Extracted Garment Name: "${garmentName}"`);
 
         // 🛑 **Prevent selecting an empty name**
         if (!garmentName) {
@@ -196,13 +208,13 @@ window.addEventListener('click', (event) => {
             return;
         }
 
-        // ✅ Hide all other garments
+        // Hide all other garments
         garments.forEach(({ object }) => {
             object.visible = (object === selectedGarment);
             object.userData.isClickable = (object === selectedGarment);
         });
 
-        // ✅ Disable clicking on hidden garments
+        // Disable clicking on hidden garments
         garments = garments.filter(({ object }) => object.userData.isClickable);
 
         // 🔍 **Find the correct posed avatar**
@@ -214,12 +226,12 @@ window.addEventListener('click', (event) => {
             Object.keys(garmentToPosedAvatarMap).forEach(key => {
                 if (garmentName.includes(key) || key.includes(garmentName)) {
                     posedAvatarUrl = garmentToPosedAvatarMap[key];
-                    console.log(`✅ Fuzzy match found: "${garmentName}" -> "${key}"`);
+                    console.log(`Fuzzy match found: "${garmentName}" -> "${key}"`);
                 }
             });
         }
 
-        // ✅ Only replace the avatar if a valid match is found
+        // Only replace the avatar if a valid match is found
         if (posedAvatarUrl) {
             console.log(`🧵 Replacing with posed avatar: ${posedAvatarUrl}`);
             replaceAvatar(selectedGarment, posedAvatarUrl);
@@ -277,25 +289,25 @@ function replaceAvatar(garment, posedAvatarUrl) {
         window.avatar = null;
     }
 
-    console.log(`✅ Loading posed avatar from: ${posedAvatarUrl}`);
+    console.log(`Loading posed avatar from: ${posedAvatarUrl}`);
 
     const loader = new GLTFLoader();
     loader.load(posedAvatarUrl, (gltf) => {
         const avatar = gltf.scene;
 
-        // ✅ Position & Scale Avatar
-        avatar.scale.set(0.018, 0.018,0.018);
+        // Position & Scale Avatar
+        avatar.scale.set(0.008, 0.008, 0.008);
         avatar.position.set(0, -0.5, 0);
 
-        // ✅ Attach Lights
-        const keyLight = new THREE.DirectionalLight(0xffffff, 5);
+        // Attach Lights
+        const keyLight = new THREE.DirectionalLight(0xffffff, 1, 10, 2); //color, intensity, distance, decay
         keyLight.position.set(2, 5, 5);
         keyLight.castShadow = true;
 
-        const rimLight = new THREE.PointLight(0xffe6ff, 10, 10, 2);
+        const rimLight = new THREE.PointLight(0xffffff, 1, 10, 2); 
         rimLight.position.set(-1, 3, -2);
 
-        const fillLight = new THREE.PointLight(0x888888, 2, 10, 2);
+        const fillLight = new THREE.PointLight(0xffffff, 1, 10, 2);
         fillLight.position.set(0, 2, -3);
 
         avatar.add(keyLight, rimLight, fillLight);
@@ -303,7 +315,7 @@ function replaceAvatar(garment, posedAvatarUrl) {
         window.avatar = avatar;
         scene.add(avatar);
 
-        // ✅ Add glow effect to new posed avatar
+        // Add glow effect to new posed avatar
         applyGlowEffect(avatar);
     }, undefined, (error) => {    });
 }
@@ -317,24 +329,27 @@ const garmentToPosedAvatarMap = {
     'nb1': '/public/NB1_Posed.glb'
 };
 
-// ✅ CALL THE FUNCTION TO LOAD THE AVATAR
+// ALL THE FUNCTION TO LOAD THE AVATAR
 loadAvatar();
 
 
-// ✅ HDRI BACKGROUND
+// HDRI BACKGROUND
 const textureLoader = new THREE.TextureLoader();
-const backgroundTexture = textureLoader.load('/white.png');
+const backgroundTexture = textureLoader.load('/black.png');
 scene.background = backgroundTexture;
 
-// ✅ POST PROCESSING SETUP FOR GLOW EFFECT
+// POST PROCESSING SETUP FOR GLOW EFFECT
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
 
+// Update outlinePass settings to be more performant but visible
 const outlinePass = new OutlinePass(new THREE.Vector2(window.innerWidth, window.innerHeight), scene, camera);
-outlinePass.edgeStrength = 0.2;
-outlinePass.edgeGlow = 1;
-outlinePass.edgeThickness = 10;
-outlinePass.visibleEdgeColor.set(0xff00ae);
+outlinePass.edgeStrength = 0.5;      // Increased from 0.2
+outlinePass.edgeGlow = 10;        // Reduced from 1
+outlinePass.edgeThickness = 1;     // Reduced from 10
+outlinePass.pulsePeriod = 0;       // Disable pulse effect
+outlinePass.visibleEdgeColor.set(0xfddeff);
+outlinePass.hiddenEdgeColor.set(0x222222);
 composer.addPass(outlinePass);
 
 function applyMaterialMaps(mesh, materialMaps) {
@@ -388,19 +403,11 @@ function applyMaterialToAvatar() {
 
     avatar.traverse((child) => {
         if (child.isMesh) {
-            // ✅ Create a basic material without textures
-            child.material = new THREE.MeshStandardMaterial({
-                color: 0xffffff, // Default white color
-                roughness: 0,  
-                metalness: 0.8,  
-                side: THREE.DoubleSide,
-            });
 
-            // ✅ Ensure the avatar receives light properly
-            child.castShadow = false; // Prevents self-shadowing issues
-            child.receiveShadow = true; // Allows the avatar to be illuminated
-
-            child.material.needsUpdate = true;
+            child.castShadow = false;
+            child.receiveShadow = true;
+       // Optional: Log materials for debugging
+       console.log(`📦 Mesh: ${child.name}, Material:`, child.material);
         }
     });
 }
@@ -460,7 +467,7 @@ const garmentTextures = {
 };
 
 
-// ✅ LOAD GARMENTS AND POSITION THEM
+// LOAD GARMENTS AND POSITION THEM
 function loadGarment(filePath, index) {
     const loader = new GLTFLoader();
     loader.load(
@@ -483,7 +490,7 @@ function loadGarment(filePath, index) {
                     // ✅ If it's the Jumpsuit, override material with editable basic material
                     if (garmentName === "Jumpsuit") {
                         child.material = new THREE.MeshStandardMaterial({
-                            color: 0xfddeff, // Green color
+                            color: 0xfddeff, // Pink
                             roughness: 1,
                             metalness: 0.5,
                             side: THREE.DoubleSide,
@@ -491,24 +498,25 @@ function loadGarment(filePath, index) {
                     }
                 }
             });
-  // ✅ CREATE LIGHTS FOR GARMENT
-  const primaryLight = new THREE.PointLight(0xFFFFFF, 3, 10, 2); // Key Light
-  const secondaryLight1 = new THREE.PointLight(0xFDDEFF, 1.5, 10, 2); // Rim Left
-  const secondaryLight2 = new THREE.PointLight(0xFFBFBF, 1.5, 10, 2); // Accent Right
-  const highlightLight = new THREE.PointLight(0xE5CDFF, 2, 10, 2); // Extra Highlight
+  //  CREATE LIGHTS FOR GARMENT
+  const primaryLight = new THREE.PointLight(0xffffff, 1, 10, 2); // Key Light // color, intensity, distance, decay
+  const secondaryLight1 = new THREE.PointLight(0xffffff, 1, 10, 2); // Rim Left
+  const secondaryLight2 = new THREE.PointLight(0xffffff, 1, 10, 2); // Accent Right
+  const highlightLight = new THREE.PointLight(0xffffff, 1, 10, 2); // Extra Highlight
 
-  // ✅ Position lights relative to the garment
+  // Position lights relative to the garment
   primaryLight.position.set(0, 0, 0);
   secondaryLight1.position.set(-0.5, 1, -0.5);
   secondaryLight2.position.set(0.5, 1, -0.5);
   highlightLight.position.set(0, 3, 0);
 
-  // ✅ Attach the lights to the garment so they move with it
+  //  Attach the lights to the garment so they move with it
   garment.add(primaryLight, secondaryLight1, secondaryLight2, highlightLight);
 
 
-              // ✅ Garment Positioning & Rotation
-            const radius = 3;
+              //  Garment Positioning & Rotation
+              garment.scale.set(0.5, 0.5, 0.5);
+              const radius = 2;
             const angle = (index / garmentFiles.length) * Math.PI * 2;
             garment.userData.orbitRadius = radius;
             garment.userData.orbitAngle = angle;
@@ -536,7 +544,7 @@ garmentFiles.forEach((file, index) => {
 });
 
 
-// ✅ WASD MOVEMENT CONTROLS
+//  WASD MOVEMENT CONTROLS
 window.addEventListener('keydown', (event) => {
     keysPressed[event.code] = true;
 });
@@ -553,53 +561,41 @@ function handleMovement() {
 }
 handleMovement();
 
-// ✅ HOVER EFFECT - OUTLINE GLOW + STOP MOVEMENT
+// Simplified mousemove event listener
 window.addEventListener('mousemove', (event) => {
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
+  
     raycaster.setFromCamera(mouse, camera);
     const intersects = raycaster.intersectObjects(garments.flatMap(g => g.object.children), true);
-
+  
     outlinePass.selectedObjects = [];
-    let garmentHovered = false;
-
-    garments.forEach(garment => {
-        garment.object.userData.isHovered = false; // ✅ Reset all garments
-    });
-
+    
     if (intersects.length > 0) {
         let hoveredGarment = intersects[0].object;
         while (hoveredGarment.parent && hoveredGarment.parent !== scene) {
             hoveredGarment = hoveredGarment.parent;
         }
-
+  
         outlinePass.selectedObjects = [hoveredGarment];
-        // ✅ Customize glow appearance
-outlinePass.edgeStrength = .5;  // Stronger glow
-outlinePass.edgeGlow = 1;      // Softer transition
-outlinePass.edgeThickness = 5; // Thicker outline
-outlinePass.visibleEdgeColor.set(0xfddeff); // Cyan glow
-outlinePass.hiddenEdgeColor.set(0x222222);  // Dark hidden edges
-
-composer.addPass(outlinePass);
-
-        // ✅ Find the correct garment object & update hover state
+        
+        // Update hover states
         garments.forEach(garment => {
-            if (garment.object === hoveredGarment) {
-                gsap.to(garment.object.userData, { isHovered: true, duration: 0.1 });
-            } else {
-                gsap.to(garment.object.userData, { isHovered: false, duration: 0.1 });
-            }
+            const isHovered = garment.object === hoveredGarment;
+            garment.object.userData.isHovered = isHovered;
+            // Directly update orbit speed without GSAP
+            garment.object.userData.orbitSpeed = isHovered ? 0 : BASE_ORBIT_SPEED;
+        });
+    } else {
+        // Reset all garments to default state
+        garments.forEach(garment => {
+            garment.object.userData.isHovered = false;
+            garment.object.userData.orbitSpeed = BASE_ORBIT_SPEED;
         });
     }
-
-    garments.forEach(garment => {
-        gsap.to(garment.object.userData, { orbitSpeed: garmentHovered ? 0 : 0.002, duration: 1.5 });
-    });
 });
 
-// ✅ CLICK-AND-HOLD EFFECT: Gradually Increase Glow
+// CLICK-AND-HOLD EFFECT: Gradually Increase Glow
 window.addEventListener('mousedown', (event) => {
     if (avatarReplaced) return; // Prevent further interactions if the avatar has already been replaced
 
@@ -613,10 +609,23 @@ window.addEventListener('mousedown', (event) => {
         }
         selectedGarment = clickedGarment;
 
-        // ✅ Instantly hide all other garments except the selected one
+        // Hide all other garments except the selected one
         garments.forEach(({ object }) => {
             object.visible = (object === selectedGarment);
         });
+
+        // Get the garment name for avatar replacement
+        let garmentName = selectedGarment.name?.trim().toLowerCase() || "";
+        if (!garmentName) {
+            garmentName = selectedGarment.userData.sourceFile?.split('/').pop().split('.')[0].toLowerCase() || "";
+        }
+
+        // Find and load the corresponding posed avatar
+        const posedAvatarUrl = garmentToPosedAvatarMap[garmentName];
+        if (posedAvatarUrl) {
+            replaceAvatar(selectedGarment, posedAvatarUrl);
+            avatarReplaced = true;
+        }
     }
 });
 
@@ -626,67 +635,56 @@ fadeOutGlowEffect(window.avatar, 1000); // Adjust the duration as needed
 });
 
 
-// ✅ ANIMATION LOOP
 function animate() {
+    stats.begin(); // Start performance measuring
     requestAnimationFrame(animate);
-    const delta = clock.getDelta(); // Time difference per frame
-
-    // ✅ Check if ANY garment is hovered
-    const anyHovered = garments.some(g => g.object.userData.isHovered);
-
-    garments.forEach(({ object }, index) => {
-        // ✅ Ensure each garment has a unique initial rotation offset
-        if (object.userData.rotationOffset === undefined) {
-            object.userData.rotationOffset = Math.random() * Math.PI * 2; // Unique staggered offset
-        }
-
-        // ✅ Define base speeds
-        const baseOrbitSpeed = 0.002; // Normal orbit speed
-        const baseRotationSpeed = 1; // ✅ Uniform rotation speed for all garments
-        const hoverSlowdownSpeed = 0.1; // Slower rotation when hovered
-        const stopSpeed = 0.0; // Fully stop orbit when any garment is hovered
-
-        // ✅ If any garment is hovered, stop ALL orbiting
-        const targetOrbitSpeed = anyHovered ? stopSpeed : baseOrbitSpeed;
-        object.userData.orbitSpeed = THREE.MathUtils.lerp(object.userData.orbitSpeed || baseOrbitSpeed, targetOrbitSpeed, 0.1);
-
-        // ✅ Ensure ALL garments start rotating immediately
-        if (object.userData.rotationSpeed === undefined || isNaN(object.userData.rotationSpeed)) {
-            object.userData.rotationSpeed = 0.5; // Force uniform rotation speed
-        }
-
-        // ✅ Ensure ALL garments rotate at the EXACT same speed
-        const fixedRotationSpeed = 0.5; // Set a fixed, uniform speed for all garments
-
-        if (object.userData.rotationSpeed === undefined) {
-            object.userData.rotationSpeed = 0.5; // Set uniform rotation speed for all
-        }
-
-        // ✅ Ensure only the hovered garment slows down while others continue at normal speed
-        const targetRotationSpeed = object.userData.isHovered ? 0.1 : 0.5;
-        object.userData.rotationSpeed = THREE.MathUtils.lerp(object.userData.rotationSpeed, targetRotationSpeed, 0.1);
-
-        // ✅ Apply orbit movement (stops for all if any garment is hovered)
-        object.userData.orbitAngle += object.userData.orbitSpeed;
-        object.position.set(
-            Math.cos(object.userData.orbitAngle) * object.userData.orbitRadius,
-            0,
-            Math.sin(object.userData.orbitAngle) * object.userData.orbitRadius
-        );
-
-        // ✅ Apply self-rotation (ALL garments should rotate unless hovered)
-        object.rotation.y += object.userData.rotationSpeed * 0.016 + Math.sin(object.userData.rotationOffset) * 0.01;
-
+    const delta = clock.getDelta();
+  
+    garments.forEach(({ object }) => {
+      // Ensure each garment has a unique rotation offset
+      if (object.userData.rotationOffset === undefined) {
+        object.userData.rotationOffset = Math.random() * Math.PI * 2;
+      }
+  
+      // Define base speeds
+      const baseOrbitSpeed = 0.002;  // Normal orbit speed for non-hovered garments
+      const baseRotationSpeed = 1;   // Base self-rotation speed
+  
+      // Set orbitSpeed individually based on hover state:
+      if (object.userData.isHovered) {
+        object.userData.orbitSpeed = 0;
+      } else {
+        object.userData.orbitSpeed = baseOrbitSpeed;
+      }
+  
+      // Update orbit angle and position using the individual orbitSpeed
+      object.userData.orbitAngle = (object.userData.orbitAngle || 0) + object.userData.orbitSpeed;
+      object.position.set(
+        Math.cos(object.userData.orbitAngle) * object.userData.orbitRadius,
+        0,
+        Math.sin(object.userData.orbitAngle) * object.userData.orbitRadius
+      );
+  
+      // Set self-rotation speed (optionally slowing down the hovered garment)
+      if (object.userData.rotationSpeed === undefined || isNaN(object.userData.rotationSpeed)) {
+        object.userData.rotationSpeed = baseRotationSpeed;
+      }
+      const targetRotationSpeed = object.userData.isHovered ? 0.1 : baseRotationSpeed;
+      object.userData.rotationSpeed = THREE.MathUtils.lerp(object.userData.rotationSpeed, targetRotationSpeed, 0.1);
+  
+      // Apply self-rotation
+      object.rotation.y += object.userData.rotationSpeed * delta + Math.sin(object.userData.rotationOffset) * 0.01;
     });
-
-    // ✅ AVATAR ROTATION (rotate avatar on its internal axis)
+  
+    // Rotate avatar (if present)
     if (window.avatar) {
-        // Rotate avatar around its Y-axis (or apply other rotations as needed)
-        window.avatar.rotation.y += 0.005; // Slow continuous rotation
+      window.avatar.rotation.y += 0.005;
     }
+  
+    controls.update();
+    composer.render();
+    stats.end(); // End performance measuring
+  }
+  
+  animate();
 
-    controls.update();  // Update camera movement (OrbitControls)
-    composer.render();  // Render the scene
-}
-
-animate();  // Start the animation loop
