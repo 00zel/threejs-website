@@ -13,6 +13,27 @@ import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader.js';
 import Stats from 'https://cdn.skypack.dev/stats.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 
+// SETTINGS AND CONSTANTS
+const SETTINGS = {
+  CAMERA: {
+    START_POSITION: new THREE.Vector3(0, 1.2, 6),
+    TARGET: new THREE.Vector3(0, 0.5, 0),
+    MOVEMENT_SPEED: 0.1
+  },
+  ORBIT: {
+    BASE_SPEED: 0.002
+  },
+  ROTATION: {
+    BASE_SPEED: 1
+  },
+  GLOW: {
+    DEFAULT: 0.5,
+    MAX: 3.0,
+    HOLD_DURATION: 1000, // ms until max glow
+    ACTIVATION_HOLD: 500 // ms to hold before selection activates
+  },
+  DEBUG: false // Set to false in production
+};
 
 //  DECLARING CONSTANTS
 let garments = [];
@@ -22,11 +43,8 @@ const mouse = new THREE.Vector2();
 let selectedGarment = null;
 let movementEnabled = true;
 const keysPressed = {};
-const movementSpeed = 0.1;
 let avatarReplaced = false; // Flag to track if the avatar has been replaced
 let currentHoveredGarment = null;
-const BASE_ORBIT_SPEED = 0.002;
-const BASE_ROTATION_SPEED = 1;
 let garmentSelected = false; // Add this flag at the top with your other constants
 const loadingManager = new THREE.LoadingManager();
 const dracoLoader = new DRACOLoader(loadingManager);
@@ -34,6 +52,12 @@ dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5
 const gltfLoader = new GLTFLoader(loadingManager);
 gltfLoader.setDRACOLoader(dracoLoader);
 
+// Add these variables at the top with your other declarations
+let isMouseDown = false;
+let mouseDownStartTime = 0;
+
+// Add this at the top with other constants
+const lightHelpers = []; // To track all light helpers
 
 // Create a new Stats instance.
 const stats = new Stats();
@@ -64,67 +88,56 @@ document.body.appendChild(renderer.domElement);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
-controls.screenSpacePanning = false;
-controls.minDistance = 2;
+controls.screenSpacePanning = true;  // Enable screen space panning
+controls.minDistance = 0.5;          // Allow closer zoom
 controls.maxDistance = 10;
-controls.maxPolarAngle = Math.PI / 2;
+controls.maxPolarAngle = Math.PI;    // Allow full vertical rotation
+controls.target.set(0, 0.5, 0);      // Set target to face height instead of center
 
-// LIGHTING
+// ENVIRONMENTAL LIGHTING
 
 // const ambientLight = new THREE.AmbientLight(0xFFFFFF, 1); // Soft white light
 // scene.add(ambientLight);
 
-
-function createCustomMaterial() {
-    return new THREE.MeshStandardMaterial({
-        color: 0xfddeff, // Pink color
-        roughness: 0.5,  // Roughness value
-        metalness: 0.5,  // Metalness value
-        side: THREE.DoubleSide, // Double-sided material
-    });
-}
-
 // FUNCTION TO LOAD THE AVATAR
-// Replace the existing loadAvatar function with this one
 function loadAvatar() {
     gltfLoader.load(  // Use gltfLoader instead of creating a new GLTFLoader
         '/public/Avatar_Base2.glb',
         (gltf) => {
             const avatar = gltf.scene;
+            processPBRMaterials(avatar); // Add this line
             
             // Scale & Position Avatar
             avatar.scale.set(0.008, 0.008, 0.008);
-            avatar.position.set(0, -0.5, 0);
+            avatar.position.set(0, -0.6, 0);
 
             // ATTACH LIGHTS TO THE AVATAR
-            const keyLight = new THREE.DirectionalLight(0xffffff, 1, 10, 2);
-            keyLight.position.set(2, 5, 5);
+             const keyLight = new THREE.PointLight(0xFFFFFF, 15, 10, 2); // white
+            keyLight.position.set(80, 140, 80);
             keyLight.castShadow = true;
 
-            const rimLight = new THREE.PointLight(0xffffff, 1, 10, 2);
-            rimLight.position.set(-1, 3, -2);
+            const rimLight = new THREE.PointLight(0xFFFFFF, 4, 10, 2); // FFA0B0 purple
+            rimLight.position.set(-80, 130, -80);
 
-            const fillLight = new THREE.PointLight(0xffffff, 1, 10, 2);
-            fillLight.position.set(0, 2, -3);
+            const fillLight = new THREE.PointLight(0xFFFFFF, 4, 10, 2); // DCFFCB green 
+            fillLight.position.set(50, 80, -50);
 
             avatar.add(keyLight, rimLight, fillLight);
 
-            window.avatar = avatar;
-            scene.add(avatar);
 
-            // Log materials for debugging
-            avatar.traverse((child) => {
-                if (child.isMesh) {
-                    console.log(`🎨 Loaded mesh: ${child.name}`, child.material);
-                }
-            });
+            // Add visual helpers for debugging light positions
+        //    const keyLightHelper = new THREE.PointLightHelper(keyLight, 10, 0xff0000);
+         //   scene.add(keyLightHelper);
+
+        //    const rimLightHelper = new THREE.PointLightHelper(rimLight, 10, 0x00ff00);
+        //    scene.add(rimLightHelper);
+
+        //    const fillLightHelper = new THREE.PointLightHelper(fillLight, 10, 0x0000ff);
+        //    scene.add(fillLightHelper);
+
+           window.avatar = avatar;
+           scene.add(avatar);
         },
-        (progress) => {
-            console.log(`Loading avatar: ${(progress.loaded / progress.total * 100).toFixed(2)}%`);
-        },
-        (error) => {
-            console.error("❌ Failed to load Avatar GLB:", error);
-        }
     );
 }
 
@@ -261,63 +274,59 @@ function addGlowEffect(object) {
     outlinePass.hiddenEdgeColor.set(0x000000);
     outlinePass.selectedObjects = [object];
     composer.addPass(outlinePass);
-
-                function addGlowEffect(object) {
-            outlinePass.selectedObjects = [object];
-        }
-        
-        function removeGlowEffect() {
-            outlinePass.selectedObjects = [];
-        }
-           function fadeOutGlowEffect(object, duration) {
-        gsap.to(outlinePass, {
-            edgeStrength: 0,  
-            duration: duration / 100,  // Convert milliseconds to seconds
-            ease: "power3.out", 
-            onComplete: () => {
-                outlinePass.selectedObjects = [];  // Remove glow effect
-            }
-        });
-    }
 }
 
 // Function to replace the avatar with the clicked garment
 
 function replaceAvatar(garment, posedAvatarUrl) {
+    console.log("Starting avatar replacement...");
+    console.log("URL:", posedAvatarUrl);
+    
     if (window.avatar) {
-        scene.remove(window.avatar); // Remove the current avatar from the scene
+        console.log("Removing old avatar");
+        scene.remove(window.avatar);
         window.avatar = null;
     }
 
-    console.log(`Loading posed avatar from: ${posedAvatarUrl}`);
+    gltfLoader.load(posedAvatarUrl,
+        (gltf) => {
+            console.log("Successfully loaded new avatar");
+            const newAvatar = gltf.scene;
+            processPBRMaterials(newAvatar); // Add this line
+            newAvatar.scale.set(0.008, 0.008, 0.008);
+            newAvatar.position.set(0, -0.6, 0);
+            
+            // Add the same lights as the original avatar
+            const keyLight = new THREE.PointLight(0xFFFFFF, 4, 10, 2); // white color, intensity, distance, decay
+            keyLight.position.set(-100, 150, 100);
+            keyLight.castShadow = true;
 
-    const loader = new GLTFLoader();
-    loader.load(posedAvatarUrl, (gltf) => {
-        const avatar = gltf.scene;
+            const rimLight = new THREE.PointLight(0xFFFFFF, 3, 10, 1); // purple FFA0B0
+            rimLight.position.set(-100, 130, -100);
 
-        // Position & Scale Avatar
-        avatar.scale.set(0.008, 0.008, 0.008);
-        avatar.position.set(0, -0.5, 0);
+            const fillLight = new THREE.PointLight(0xFFFFFF, 3, 10, 1); // green DCFFCB
+            fillLight.position.set(100, 150, -100);
 
-        // Attach Lights
-        const keyLight = new THREE.DirectionalLight(0xffffff, 1, 10, 2); //color, intensity, distance, decay
-        keyLight.position.set(2, 5, 5);
-        keyLight.castShadow = true;
+            const highLight = new THREE.PointLight(0xFFFFFF, 5, 10, 1);
+            highLight.position.set(100, 130, 100); 
 
-        const rimLight = new THREE.PointLight(0xffffff, 1, 10, 2); 
-        rimLight.position.set(-1, 3, -2);
-
-        const fillLight = new THREE.PointLight(0xffffff, 1, 10, 2);
-        fillLight.position.set(0, 2, -3);
-
-        avatar.add(keyLight, rimLight, fillLight);
-
-        window.avatar = avatar;
-        scene.add(avatar);
-
-        // Add glow effect to new posed avatar
-        applyGlowEffect(avatar);
-    }, undefined, (error) => {    });
+            newAvatar.add(keyLight, rimLight, fillLight, highLight);
+            
+            // Optional: Add debug helpers if needed
+            
+            const keyLightHelper = new THREE.PointLightHelper(keyLight, 10, 0xff0000);
+            const rimLightHelper = new THREE.PointLightHelper(rimLight, 10, 0x00ff00);
+            const fillLightHelper = new THREE.PointLightHelper(fillLight, 10, 0x0000ff);
+            const highLightHelper = new THREE.PointLightHelper(fillLight, 10, 0x0f0f0f);
+            scene.add(keyLightHelper, rimLightHelper, fillLightHelper);
+            
+            
+            window.avatar = newAvatar;
+            scene.add(newAvatar);
+        },
+        (progress) => console.log("Loading progress:", progress),
+        (error) => console.error("Error loading avatar:", error)
+    );
 }
 
 // Mapping between garments and their associated posed avatars
@@ -348,7 +357,7 @@ outlinePass.edgeStrength = 0.5;      // Increased from 0.2
 outlinePass.edgeGlow = 10;        // Reduced from 1
 outlinePass.edgeThickness = 1;     // Reduced from 10
 outlinePass.pulsePeriod = 0;       // Disable pulse effect
-outlinePass.visibleEdgeColor.set(0xfddeff);
+outlinePass.visibleEdgeColor.set(0xB7FF00); //fddeff
 outlinePass.hiddenEdgeColor.set(0x222222);
 composer.addPass(outlinePass);
 
@@ -471,73 +480,87 @@ const garmentTextures = {
 function loadGarment(filePath, index) {
     const loader = new GLTFLoader();
     loader.load(
-        filePath,
-        (gltf) => {
-            const garment = gltf.scene;
-            const garmentName = filePath.split('/').pop().split('.')[0]; // Extract garment name
-            const garmentMaterialMaps = garmentTextures[garmentName] || []; // Get correct textures
-
-            console.log(`🔍 Applying textures for: ${garmentName}`, garmentMaterialMaps);
-
-            // Ensure garment is fully loaded before applying materials
-            if (!garment) {
-                console.error(`❌ Garment failed to load: ${filePath}`);
-                return;
-            }
-
-            garment.traverse((child) => {
-                if (child.isMesh) {
-                    // ✅ If it's the Jumpsuit, override material with editable basic material
-                    if (garmentName === "Jumpsuit") {
-                        child.material = new THREE.MeshStandardMaterial({
-                            color: 0xfddeff, // Pink
-                            roughness: 1,
-                            metalness: 0.5,
-                            side: THREE.DoubleSide,
-                        });
-                    }
-                }
-            });
-  //  CREATE LIGHTS FOR GARMENT
-  const primaryLight = new THREE.PointLight(0xffffff, 1, 10, 2); // Key Light // color, intensity, distance, decay
-  const secondaryLight1 = new THREE.PointLight(0xffffff, 1, 10, 2); // Rim Left
-  const secondaryLight2 = new THREE.PointLight(0xffffff, 1, 10, 2); // Accent Right
-  const highlightLight = new THREE.PointLight(0xffffff, 1, 10, 2); // Extra Highlight
-
-  // Position lights relative to the garment
-  primaryLight.position.set(0, 0, 0);
-  secondaryLight1.position.set(-0.5, 1, -0.5);
-  secondaryLight2.position.set(0.5, 1, -0.5);
-  highlightLight.position.set(0, 3, 0);
-
-  //  Attach the lights to the garment so they move with it
-  garment.add(primaryLight, secondaryLight1, secondaryLight2, highlightLight);
-
-
-              //  Garment Positioning & Rotation
-              garment.scale.set(0.5, 0.5, 0.5);
-              const radius = 2;
-            const angle = (index / garmentFiles.length) * Math.PI * 2;
-            garment.userData.orbitRadius = radius;
-            garment.userData.orbitAngle = angle;
-            garment.userData.orbitSpeed = 0.002;
-
-            garment.position.set(
-                Math.cos(angle) * radius,
-                0,
-                Math.sin(angle) * radius
-            );
-
-            garments.push({ object: garment });
-            scene.add(garment);
-        },
-        undefined,
-        (error) => {
-            console.error(`❌ Failed to load garment: ${filePath}`, error);
+      filePath,
+      (gltf) => {
+        const garment = gltf.scene;
+        processPBRMaterials(garment); // Add this line
+        
+        // Basic garment setup
+        garment.scale.set(0.5, 0.5, 0.5);
+        const radius = 2;
+        const angle = (index / garmentFiles.length) * Math.PI * 2;
+        garment.userData.orbitRadius = radius;
+        garment.userData.orbitAngle = angle;
+        garment.position.set(
+            Math.cos(angle) * radius,
+            0,
+            Math.sin(angle) * radius
+        );
+                
+        // 1. Key light - Main light, brightest, 45° front-right
+        const keyLight = new THREE.PointLight(0xffffff, 1.5, 1); // white color, intensity, distance
+        keyLight.position.set(1, 1, 1); // x (negative left of garment, positive right), y (height), z (negative behind garment, positive front)
+        garment.add(keyLight);
+        
+        // 2. Fill light - Softer light, opposite the key light
+        const fillLight = new THREE.PointLight(0xFFFFFF, 1.5, 1); // cyan c9ffed
+        fillLight.position.set(-1, 1, 1); // 
+        garment.add(fillLight);
+        
+        // 3. Rim light - Behind subject for edge definition
+        const rimLight = new THREE.PointLight(0xFFFFFF, 1.5, 1); // pink ffd6f6
+        rimLight.position.set(1, 1, -1);
+        garment.add(rimLight);
+        
+        // 4. Highlight light - Top light for specific highlights
+        const highlightLight = new THREE.PointLight(0xFFFFFF, 1.5, 1); // ice blue D7F1FF
+        highlightLight.position.set(-1, 1, -1);
+        garment.add(highlightLight);
+        
+        // Light helpers - only create them if debug mode is enabled
+        if (SETTINGS.DEBUG) {
+            const keyHelper = new THREE.PointLightHelper(keyLight, 0.3);
+            const fillHelper = new THREE.PointLightHelper(fillLight, 0.3);
+            const rimHelper = new THREE.PointLightHelper(rimLight, 0.3);
+            const highlightHelper = new THREE.PointLightHelper(highlightLight, 0.3);
+            
+            lightHelpers.push(keyHelper, fillHelper, rimHelper, highlightHelper);
+            scene.add(keyHelper, fillHelper, rimHelper, highlightHelper);
+            
+            // Add cleanup method to the garment
+            garment.userData.cleanupHelpers = () => {
+                lightHelpers.forEach(helper => {
+                    scene.remove(helper);
+                    helper.dispose && helper.dispose();
+                });
+            };
         }
+
+        // Update helpers position
+        const updateHelpers = () => {
+            // Only run this if we're in debug mode and helpers exist
+            if (SETTINGS.DEBUG) {
+              // Access helpers through the outer scope variables
+              lightHelpers.forEach(helper => {
+                if (helper && helper.update) helper.update();
+              });
+            }
+          };
+        
+        garment.userData.updateHelpers = updateHelpers;
+
+        garments.push({ object: garment });
+        scene.add(garment);
+      }
     );
 }
 
+// Add this helper function to toggle debug visualizations
+function toggleDebugHelpers(show) {
+    lightHelpers.forEach(helper => {
+        helper.visible = show;
+    });
+}
 
 garmentFiles.forEach((file, index) => {
     loadGarment(file.path, index);
@@ -553,44 +576,45 @@ window.addEventListener('keyup', (event) => {
 });
 
 function handleMovement() {
-    if (keysPressed['KeyW']) camera.position.z -= movementSpeed;
-    if (keysPressed['KeyS']) camera.position.z += movementSpeed;
-    if (keysPressed['KeyA']) camera.position.x -= movementSpeed;
-    if (keysPressed['KeyD']) camera.position.x += movementSpeed;
+    if (keysPressed['KeyW']) camera.position.z -= SETTINGS.CAMERA.MOVEMENT_SPEED;
+    if (keysPressed['KeyS']) camera.position.z += SETTINGS.CAMERA.MOVEMENT_SPEED;
+    if (keysPressed['KeyA']) camera.position.x -= SETTINGS.CAMERA.MOVEMENT_SPEED;
+    if (keysPressed['KeyD']) camera.position.x += SETTINGS.CAMERA.MOVEMENT_SPEED;
     requestAnimationFrame(handleMovement);
 }
 handleMovement();
 
-// Simplified mousemove event listener
+// Add this helper function near the top
+function getObjectUnderMouse() {
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(garments.flatMap(g => g.object.children), true);
+    
+    if (intersects.length === 0) {
+        return null;
+    }
+    
+    // Find the parent garment
+    let selectedObject = intersects[0].object;
+    while (selectedObject.parent && selectedObject.parent !== scene) {
+        selectedObject = selectedObject.parent;
+    }
+    
+    return selectedObject;
+}
+
+// Then in your event listeners, replace the repeated raycasting code with:
 window.addEventListener('mousemove', (event) => {
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-  
-    raycaster.setFromCamera(mouse, camera);
-    const intersects = raycaster.intersectObjects(garments.flatMap(g => g.object.children), true);
-  
-    outlinePass.selectedObjects = [];
     
-    if (intersects.length > 0) {
-        let hoveredGarment = intersects[0].object;
-        while (hoveredGarment.parent && hoveredGarment.parent !== scene) {
-            hoveredGarment = hoveredGarment.parent;
-        }
-  
-        outlinePass.selectedObjects = [hoveredGarment];
+    if (!isMouseDown) {
+        const hoveredGarment = getObjectUnderMouse();
+        outlinePass.selectedObjects = hoveredGarment ? [hoveredGarment] : [];
+        outlinePass.edgeStrength = hoveredGarment ? SETTINGS.GLOW.DEFAULT : 0;
         
         // Update hover states
         garments.forEach(garment => {
-            const isHovered = garment.object === hoveredGarment;
-            garment.object.userData.isHovered = isHovered;
-            // Directly update orbit speed without GSAP
-            garment.object.userData.orbitSpeed = isHovered ? 0 : BASE_ORBIT_SPEED;
-        });
-    } else {
-        // Reset all garments to default state
-        garments.forEach(garment => {
-            garment.object.userData.isHovered = false;
-            garment.object.userData.orbitSpeed = BASE_ORBIT_SPEED;
+            garment.object.userData.isHovered = (garment.object === hoveredGarment);
         });
     }
 });
@@ -607,38 +631,103 @@ window.addEventListener('mousedown', (event) => {
         while (clickedGarment.parent && clickedGarment.parent !== scene) {
             clickedGarment = clickedGarment.parent;
         }
+        
+        // Start the glow effect
+        isMouseDown = true;
+        mouseDownStartTime = Date.now();
         selectedGarment = clickedGarment;
-
-        // Hide all other garments except the selected one
-        garments.forEach(({ object }) => {
-            object.visible = (object === selectedGarment);
-        });
-
-        // Get the garment name for avatar replacement
-        let garmentName = selectedGarment.name?.trim().toLowerCase() || "";
-        if (!garmentName) {
-            garmentName = selectedGarment.userData.sourceFile?.split('/').pop().split('.')[0].toLowerCase() || "";
-        }
-
-        // Find and load the corresponding posed avatar
-        const posedAvatarUrl = garmentToPosedAvatarMap[garmentName];
-        if (posedAvatarUrl) {
-            replaceAvatar(selectedGarment, posedAvatarUrl);
-            avatarReplaced = true;
-        }
+        outlinePass.selectedObjects = [selectedGarment];
+        outlinePass.edgeStrength = SETTINGS.GLOW.DEFAULT; // Start with default glow
     }
 });
 
 window.addEventListener('mouseup', (event) => {
-// Fade out the glow effect when the mouse button is released
-fadeOutGlowEffect(window.avatar, 1000); // Adjust the duration as needed
+    if (isMouseDown && selectedGarment) {
+        const holdDuration = Date.now() - mouseDownStartTime;
+        
+        if (holdDuration > SETTINGS.GLOW.ACTIVATION_HOLD) { // If held for more than 500ms
+           
+            // Hide all other garments except the selected one
+            garments.forEach(({ object }) => {
+                object.visible = (object === selectedGarment);
+            });
+
+            // Get the garment name for avatar replacement
+            let garmentName = selectedGarment.name?.trim().toLowerCase() || "";
+            if (!garmentName) {
+                garmentName = selectedGarment.userData.sourceFile?.split('/').pop().split('.')[0].toLowerCase() || "";
+            }
+
+            // Find and load the corresponding posed avatar
+            const posedAvatarUrl = garmentToPosedAvatarMap[garmentName];
+            if (posedAvatarUrl) {
+                replaceAvatar(selectedGarment, posedAvatarUrl);
+                avatarReplaced = true;
+            }
+        } else {
+            // If just clicking quickly, reset the glow
+            fadeOutGlowEffect(selectedGarment, 500);
+        }
+    }
+    
+    // Reset mouse state
+    isMouseDown = false;
 });
 
+// Add key controls for camera positioning
+window.addEventListener('keydown', (event) => {
+    switch(event.code) {
+        case 'KeyW':
+            camera.position.z -= SETTINGS.CAMERA.MOVEMENT_SPEED;
+            break;
+        case 'KeyS':
+            camera.position.z += SETTINGS.CAMERA.MOVEMENT_SPEED;
+            break;
+        case 'KeyA':
+            camera.position.x -= SETTINGS.CAMERA.MOVEMENT_SPEED;
+            break;
+        case 'KeyD':
+            camera.position.x += SETTINGS.CAMERA.MOVEMENT_SPEED;
+            break;
+        case 'KeyQ':  // Move camera up
+            camera.position.y += SETTINGS.CAMERA.MOVEMENT_SPEED;
+            break;
+        case 'KeyE':  // Move camera down
+            camera.position.y -= SETTINGS.CAMERA.MOVEMENT_SPEED;
+            break;
+        case 'Space':  // Reset camera to face view
+            gsap.to(controls.target, {
+                x: 0,
+                y: 0.5,  // Face height
+                z: 0,
+                duration: 1,
+                ease: "power2.out"
+            });
+            gsap.to(camera.position, {
+                x: 0,
+                y: 1.2,
+                z: 3,
+                duration: 1,
+                ease: "power2.out"
+            });
+            break;
+    }
+});
 
 function animate() {
-    stats.begin(); // Start performance measuring
+    stats.begin(); 
     requestAnimationFrame(animate);
     const delta = clock.getDelta();
+    
+    // Gradual glow while mouse is held down
+    if (isMouseDown && selectedGarment) {
+        const holdDuration = Date.now() - mouseDownStartTime;
+        const holdProgress = Math.min(1.0, holdDuration / SETTINGS.GLOW.HOLD_DURATION); // Max out at 1 second
+        
+        // Calculate glow intensity based on how long the mouse has been held
+        const currentGlow = SETTINGS.GLOW.DEFAULT + (SETTINGS.GLOW.MAX - SETTINGS.GLOW.DEFAULT) * holdProgress;
+        outlinePass.edgeStrength = currentGlow;
+    }
   
     garments.forEach(({ object }) => {
       // Ensure each garment has a unique rotation offset
@@ -647,17 +736,20 @@ function animate() {
       }
   
       // Define base speeds
-      const baseOrbitSpeed = 0.002;  // Normal orbit speed for non-hovered garments
-      const baseRotationSpeed = 1;   // Base self-rotation speed
-  
-      // Set orbitSpeed individually based on hover state:
-      if (object.userData.isHovered) {
-        object.userData.orbitSpeed = 0;
-      } else {
+      const baseOrbitSpeed = SETTINGS.ORBIT.BASE_SPEED;  // Normal orbit speed for non-hovered garments 0.002
+      
+      // Initialize orbit speed if undefined
+      if (object.userData.orbitSpeed === undefined) {
         object.userData.orbitSpeed = baseOrbitSpeed;
       }
+      
+      // Set target orbit speed based on hover state
+      const targetOrbitSpeed = object.userData.isHovered ? 0 : baseOrbitSpeed;
+      
+      // Slow down to a stop - increase this value for faster transitions
+      object.userData.orbitSpeed = THREE.MathUtils.lerp(object.userData.orbitSpeed, targetOrbitSpeed, 0.2);
   
-      // Update orbit angle and position using the individual orbitSpeed
+      // Update orbit angle and position using the interpolated speed
       object.userData.orbitAngle = (object.userData.orbitAngle || 0) + object.userData.orbitSpeed;
       object.position.set(
         Math.cos(object.userData.orbitAngle) * object.userData.orbitRadius,
@@ -667,13 +759,20 @@ function animate() {
   
       // Set self-rotation speed (optionally slowing down the hovered garment)
       if (object.userData.rotationSpeed === undefined || isNaN(object.userData.rotationSpeed)) {
-        object.userData.rotationSpeed = baseRotationSpeed;
+        object.userData.rotationSpeed = SETTINGS.ROTATION.BASE_SPEED;  // Fixed - use the constant you declared
       }
-      const targetRotationSpeed = object.userData.isHovered ? 0.1 : baseRotationSpeed;
-      object.userData.rotationSpeed = THREE.MathUtils.lerp(object.userData.rotationSpeed, targetRotationSpeed, 0.1);
+      const targetRotationSpeed = object.userData.isHovered ? 0.1 : SETTINGS.ROTATION.BASE_SPEED;
+
+      // Slow rotation speed
+      object.userData.rotationSpeed = THREE.MathUtils.lerp(object.userData.rotationSpeed, targetRotationSpeed, 0.02);
   
       // Apply self-rotation
       object.rotation.y += object.userData.rotationSpeed * delta + Math.sin(object.userData.rotationOffset) * 0.01;
+
+      // Update helpers position
+      if (object.userData.updateHelpers) {
+        object.userData.updateHelpers();
+      }
     });
   
     // Rotate avatar (if present)
@@ -688,3 +787,22 @@ function animate() {
   
   animate();
 
+// Add this callback to properly handle PBR materials
+function processPBRMaterials(object) {
+    object.traverse((node) => {
+        if (node.isMesh && node.material) {
+            const materials = Array.isArray(node.material) ? node.material : [node.material];
+            materials.forEach(material => {
+                if (material.isMeshStandardMaterial) {
+                    material.transparent = false;
+                    material.opacity = 1.0;
+                    material.depthWrite = true;
+                    material.side = THREE.FrontSide;
+                    
+                    if (material.map) material.map.encoding = THREE.sRGBEncoding;
+                    if (material.emissiveMap) material.emissiveMap.encoding = THREE.sRGBEncoding;
+                }
+            });
+        }
+    });
+}
