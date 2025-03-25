@@ -51,6 +51,9 @@ const dracoLoader = new DRACOLoader(loadingManager);
 dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/'); // Use CDN path
 const gltfLoader = new GLTFLoader(loadingManager);
 gltfLoader.setDRACOLoader(dracoLoader);
+const BLOOM_LAYER = 1;
+
+
 
 // Add these variables at the top with your other declarations
 let isMouseDown = false;
@@ -80,9 +83,33 @@ const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerH
 camera.position.set(0, 1.2, 6);  // Position camera at (0, 1.2, 6), making it look at the center of the scene
 camera.lookAt(new THREE.Vector3(0, 0, 0));  // Make sure it looks at the origin (0, 0, 0)
 
+// 🎯 Attach a flashlight to the camera
+const cameraFlashlight = new THREE.SpotLight(0xff0000, 60000, 50, Math.PI / 6, 0.8, 1); // color, intensity, distance, angle, penumbra, decay
+
+cameraFlashlight.position.set(0, 0, 0);
+cameraFlashlight.target.position.set(0, 0, -1);
+cameraFlashlight.castShadow = true;
+
+camera.add(cameraFlashlight);
+
+// Set up the flashlight target
+const flashlightTarget = new THREE.Object3D();
+flashlightTarget.position.set(0, 0, -5); // Aim 5 units in front of the camera
+camera.add(flashlightTarget);
+cameraFlashlight.target = flashlightTarget;
+
+camera.add(cameraFlashlight);
+const flashlightHelper = new THREE.SpotLightHelper(cameraFlashlight);
+scene.add(flashlightHelper);
+
+
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
+
+// Add these renderer settings near the beginning of your code, right after creating the renderer
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.outputEncoding = THREE.sRGBEncoding;
 
 //ORBIT CONTROLS
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -101,7 +128,7 @@ controls.target.set(0, 0.5, 0);      // Set target to face height instead of cen
 
 // FUNCTION TO LOAD THE AVATAR
 function loadAvatar() {
-    gltfLoader.load(  // Use gltfLoader instead of creating a new GLTFLoader
+    gltfLoader.load(  
         '/public/Avatar_Base2.glb',
         (gltf) => {
             const avatar = gltf.scene;
@@ -141,38 +168,6 @@ function loadAvatar() {
     );
 }
 
-
-// FUNCTION TO APPLY GLOW TO BASE AVATAR
-function applyGlowToBaseAvatar() {
-    if (!window.avatar) return;
-
-    outlinePass.selectedObjects = [window.avatar];
-
-    // Gradually increase glow
-    gsap.fromTo(outlinePass, 
-        { edgeStrength: 1.5 },  // Start with medium glow
-        { edgeStrength: 3.5, duration: 1.5, ease: "power2.out" } // Max glow
-    );
-
-    // Fade out the glow after 2 seconds
-    setTimeout(() => {
-        fadeOutGlowEffect(window.avatar, 2.0);
-    }, 2000);
-}
-
-//  FUNCTION TO FADE OUT GLOW
-function fadeOutGlowEffect(object, duration = 2.0) {
-    if (!object) return;
-
-    gsap.to(outlinePass, {
-        edgeStrength: 0,  
-        duration: duration,  
-        ease: "power2.out", 
-        onComplete: () => {
-            outlinePass.selectedObjects = [];
-        }
-    });
-}
 
 window.addEventListener('click', (event) => {
     raycaster.setFromCamera(mouse, camera);
@@ -258,24 +253,6 @@ window.addEventListener('click', (event) => {
     }
 });
 
-
-
-
-// Function to add glow effect to the avatar --- this is the rececing glow
-function addGlowEffect(object) {
-    const composer = new EffectComposer(renderer);
-    composer.addPass(new RenderPass(scene, camera));
-
-    const outlinePass = new OutlinePass(new THREE.Vector2(window.innerWidth, window.innerHeight), scene, camera);
-    outlinePass.edgeStrength = 25;
-    outlinePass.edgeGlow = 10;
-    outlinePass.edgeThickness = 1.0;
-    outlinePass.visibleEdgeColor.set(0xfddeff);
-    outlinePass.hiddenEdgeColor.set(0x000000);
-    outlinePass.selectedObjects = [object];
-    composer.addPass(outlinePass);
-}
-
 // Function to replace the avatar with the clicked garment
 
 function replaceAvatar(garment, posedAvatarUrl) {
@@ -297,17 +274,17 @@ function replaceAvatar(garment, posedAvatarUrl) {
             newAvatar.position.set(0, -0.6, 0);
             
             // Add the same lights as the original avatar
-            const keyLight = new THREE.PointLight(0xFFFFFF, 4, 10, 2); // white color, intensity, distance, decay
+            const keyLight = new THREE.PointLight(0xFFFFFF, 13, 10, 2); // white color, intensity, distance, decay
             keyLight.position.set(-100, 150, 100);
             keyLight.castShadow = true;
 
-            const rimLight = new THREE.PointLight(0xFFFFFF, 3, 10, 1); // purple FFA0B0
+            const rimLight = new THREE.PointLight(0xFFFFFF, 13, 50, 1); // purple FFA0B0
             rimLight.position.set(-100, 130, -100);
 
-            const fillLight = new THREE.PointLight(0xFFFFFF, 3, 10, 1); // green DCFFCB
+            const fillLight = new THREE.PointLight(0xFFFFFF, 13, 50, 1); // green DCFFCB
             fillLight.position.set(100, 150, -100);
 
-            const highLight = new THREE.PointLight(0xFFFFFF, 5, 10, 1);
+            const highLight = new THREE.PointLight(0xFFFFFF, 15, 50, 1);
             highLight.position.set(100, 130, 100); 
 
             newAvatar.add(keyLight, rimLight, fillLight, highLight);
@@ -320,6 +297,13 @@ function replaceAvatar(garment, posedAvatarUrl) {
             const highLightHelper = new THREE.PointLightHelper(fillLight, 10, 0x0f0f0f);
             scene.add(keyLightHelper, rimLightHelper, fillLightHelper);
             
+            console.log("Avatar material check:");
+            gltf.scene.traverse(node => {
+                if (node.isMesh) {
+                    console.log(`- ${node.name}: ${node.material.type}`, 
+                        node.material.map ? "✓ has texture" : "⚠️ no texture");
+                }
+            });
             
             window.avatar = newAvatar;
             scene.add(newAvatar);
@@ -333,7 +317,7 @@ function replaceAvatar(garment, posedAvatarUrl) {
 const garmentToPosedAvatarMap = {
     'jumpsuit': '/public/Jumpsuit_Posed.glb',
     'charam': '/public/CharaM_Posed.glb',
-    'charaw': '/public/CharaW_Posed.glb',
+    'domi': '/public/Domi_Posed.glb',
     'puffer': '/public/Puffer_Posed.glb',
     'nb1': '/public/NB1_Posed.glb'
 };
@@ -357,7 +341,7 @@ outlinePass.edgeStrength = 0.5;      // Increased from 0.2
 outlinePass.edgeGlow = 10;        // Reduced from 1
 outlinePass.edgeThickness = 1;     // Reduced from 10
 outlinePass.pulsePeriod = 0;       // Disable pulse effect
-outlinePass.visibleEdgeColor.set(0xB7FF00); //fddeff
+outlinePass.visibleEdgeColor.set(0xFFFFFF); //fddeff
 outlinePass.hiddenEdgeColor.set(0x222222);
 composer.addPass(outlinePass);
 
@@ -421,59 +405,28 @@ function applyMaterialToAvatar() {
     });
 }
 
+//POST PROCESSING EFFECTS
+const bloomPass = new UnrealBloomPass(
+    new THREE.Vector2(window.innerWidth, window.innerHeight),
+    2,    // strength
+    0.8,    // radius
+    0.3     // threshold
+);
+
+bloomPass.threshold = 0.9;     // Only bloom pixels brighter than this value (1.0 = white)
+bloomPass.strength = 0.3;      // Keep bloom strength moderate
+bloomPass.radius = 0.4;        // Keep the glow radius tight
+
+composer.addPass(bloomPass);
+
 // ✅ GARMENT FILES
 const garmentFiles = [
     { path: '/Puffer.glb', offset: 0 },
     { path: '/CharaM.glb', offset: 1 },
-    { path: '/CharaW.glb', offset: 2 },
+    { path: '/Domi.glb', offset: 2 },
     { path: '/Jumpsuit.glb', offset: 3 },
     { path: '/NB1.glb', offset: 4 }
 ];
-
-
-const garmentTextures = {
-    'Puffer': {
-         diffuse: '/textures/Jumpsuit_Jumpsuit_BaseColor.jpg',
-        normal: '/textures/Jumpsuit_Jumpsuit_Normal.jpg',
-        roughness: '/textures/Jumpsuit_Jumpsuit_roughness.jpg',
-    },
-    'CharaM': {
-        diffuse: '/textures/Jumpsuit_Jumpsuit_BaseColor.jpg',
-        normal: '/textures/Jumpsuit_Jumpsuit_Normal.jpg',
-        roughness: '/textures/Jumpsuit_Jumpsuit_roughness.jpg',
-    },
-    'CharaW': {
-        diffuse: '/textures/Jumpsuit_Jumpsuit_BaseColor.jpg',
-        normal: '/textures/Jumpsuit_Jumpsuit_Normal.jpg',
-        roughness: '/textures/Jumpsuit_Jumpsuit_roughness.jpg',
-    },
-   'Jumpsuit': [
-        { // Material 1 (Main Fabric)
-            diffuse: '/textures/Jumpsuit_Jumpsuit_BaseColor.jpg',
-            normal: '/textures/Jumpsuit_Jumpsuit_Normal.jpg',
-            roughness: '/textures/Jumpsuit_Jumpsuit_Roughness.jpg',
-            metalness: '/textures/Jumpsuit_Jumpsuit_Metallic.jpg'
-        },
-        { // Material 2 (Zippers or Metal Accents)
-            diffuse: '/textures/Jumpsuit_Belt_BaseColor.jpg',
-            normal: '/textures/Jumpsuit_Belt_Normal.jpg',
-            roughness: '/textures/Jumpsuit_Belt_Roughness.jpg',
-            metalness: '/textures/Jumpsuit_Belt_Metallic.jpg'
-        },
-        { // Material 3 (Lace/Mesh)
-            diffuse: '/textures/Jumpsuit_Lace_BaseColor.png',
-            normal: '/textures/Jumpsuit_Lace_Normal.jpg',
-            roughness: '/textures/Jumpsuit_Lace_Roughness.jpg',
-            alpha: '/textures/Jumpsuit_Lace_Opacity.png' // Transparency for lace
-        }
-    ],
-    'NB1': {
-        diffuse: '/textures/Jumpsuit_Jumpsuit_BaseColor.jpg',
-        normal: '/textures/Jumpsuit_Jumpsuit_Normal.jpg',
-        roughness: '/textures/Jumpsuit_Jumpsuit_roughness.jpg',
-       // alpha: '/textures/NB1_alpha.jpg', // Example for lace transparency
-    }
-};
 
 
 // LOAD GARMENTS AND POSITION THEM
@@ -483,7 +436,11 @@ function loadGarment(filePath, index) {
       filePath,
       (gltf) => {
         const garment = gltf.scene;
-        processPBRMaterials(garment); // Add this line
+        processPBRMaterials(garment); 
+        
+        // Add these two lines to fix the Puffer mesh issue
+        garment.userData.sourceFile = filePath;
+        garment.name = filePath.split('/').pop().split('.')[0].toLowerCase();
         
         // Basic garment setup
         garment.scale.set(0.5, 0.5, 0.5);
@@ -498,34 +455,34 @@ function loadGarment(filePath, index) {
         );
                 
         // 1. Key light - Main light, brightest, 45° front-right
-        const keyLight = new THREE.PointLight(0xffffff, 1.5, 1); // white color, intensity, distance
+        const keyLight = new THREE.PointLight(0xffffff, 1, 1); // white color, intensity, distance
         keyLight.position.set(1, 1, 1); // x (negative left of garment, positive right), y (height), z (negative behind garment, positive front)
         garment.add(keyLight);
         
         // 2. Fill light - Softer light, opposite the key light
-        const fillLight = new THREE.PointLight(0xFFFFFF, 1.5, 1); // cyan c9ffed
+        const fillLight = new THREE.PointLight(0xFFFFFF, 1, 1); // cyan c9ffed
         fillLight.position.set(-1, 1, 1); // 
         garment.add(fillLight);
         
         // 3. Rim light - Behind subject for edge definition
-        const rimLight = new THREE.PointLight(0xFFFFFF, 1.5, 1); // pink ffd6f6
-        rimLight.position.set(1, 1, -1);
-        garment.add(rimLight);
+    //    const rimLight = new THREE.PointLight(0xFFFFFF, 1.5, 1); // pink ffd6f6
+    //    rimLight.position.set(1, 1, -1);
+    //    garment.add(rimLight);
         
         // 4. Highlight light - Top light for specific highlights
-        const highlightLight = new THREE.PointLight(0xFFFFFF, 1.5, 1); // ice blue D7F1FF
-        highlightLight.position.set(-1, 1, -1);
-        garment.add(highlightLight);
+      //  const highlightLight = new THREE.PointLight(0xFFFFFF, 1.5, 1); // ice blue D7F1FF
+      //  highlightLight.position.set(-1, 1, -1);
+     //   garment.add(highlightLight);
         
         // Light helpers - only create them if debug mode is enabled
         if (SETTINGS.DEBUG) {
             const keyHelper = new THREE.PointLightHelper(keyLight, 0.3);
             const fillHelper = new THREE.PointLightHelper(fillLight, 0.3);
-            const rimHelper = new THREE.PointLightHelper(rimLight, 0.3);
-            const highlightHelper = new THREE.PointLightHelper(highlightLight, 0.3);
+          //  const rimHelper = new THREE.PointLightHelper(rimLight, 0.3);
+          //  const highlightHelper = new THREE.PointLightHelper(highlightLight, 0.3);
             
-            lightHelpers.push(keyHelper, fillHelper, rimHelper, highlightHelper);
-            scene.add(keyHelper, fillHelper, rimHelper, highlightHelper);
+            lightHelpers.push(keyHelper, fillHelper);
+            scene.add(keyHelper, fillHelper);
             
             // Add cleanup method to the garment
             garment.userData.cleanupHelpers = () => {
@@ -601,8 +558,6 @@ function getObjectUnderMouse() {
     
     return selectedObject;
 }
-
-// Then in your event listeners, replace the repeated raycasting code with:
 window.addEventListener('mousemove', (event) => {
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -637,7 +592,7 @@ window.addEventListener('mousedown', (event) => {
         mouseDownStartTime = Date.now();
         selectedGarment = clickedGarment;
         outlinePass.selectedObjects = [selectedGarment];
-        outlinePass.edgeStrength = SETTINGS.GLOW.DEFAULT; // Start with default glow
+        outlinePass.edgeStrength = SETTINGS.GLOW.DEFAULT; 
     }
 });
 
@@ -714,6 +669,320 @@ window.addEventListener('keydown', (event) => {
     }
 });
 
+// SPARKLE EFFECT SYSTEM
+function createSparkleEffect() {
+    // Settings for particles - increase size for more visibility
+    const particleCount = 20;
+    const particleSize = 1;
+    
+    // Create geometry for particles
+    const particles = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount * 3);
+    const scales = new Float32Array(particleCount);
+    const colors = new Float32Array(particleCount * 3);
+    const speeds = new Float32Array(particleCount);
+    
+    // Create arrays to store twinkling parameters
+    const twinkleFrequencies = new Float32Array(particleCount);
+    const twinklePhases = new Float32Array(particleCount);
+    const brightnessFactors = new Float32Array(particleCount);
+    
+    // Generate random positions, colors, and speeds
+    for (let i = 0; i < particleCount; i++) {
+      
+        // Position particles in a spherical volume around the scene
+        const radius = 3;
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos((Math.random() * 2) - 1);
+        
+        positions[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
+        positions[i * 3 + 1] = (Math.random() * 4) - 1; // Between -1 and 3
+        positions[i * 3 + 2] = radius * Math.sin(phi) * Math.sin(theta);
+        
+             // Random scale with bigger range
+             scales[i] = Math.random() * 0.8 + 0.4; // Larger variation (0.4-1.2)
+        
+        // Brighter colors - increase all color values
+        const colorChoice = Math.random();
+        if (colorChoice > 0.7) { // Light blue
+            colors[i * 3] = 1.2;     // R 
+            colors[i * 3 + 1] = 1; // G 
+            colors[i * 3 + 2] = 1.7;  // B
+        } else if (colorChoice > 0.4) { // Light yellow green
+            colors[i * 3] = 0.1;     // R
+            colors[i * 3 + 1] = 0.2;  // G
+            colors[i * 3 + 2] = 0.1;  // B 
+        } else { // Pure white (brighter)
+            colors[i * 3] = 1.0;     // R
+            colors[i * 3 + 1] = 1.0;  // G
+            colors[i * 3 + 2] = 1.0;  // B
+        }
+        
+        // Store custom twinkle parameters for each particle
+        twinkleFrequencies[i] = 3 + Math.random() * 7; // Between 3-10x speed
+        twinklePhases[i] = Math.random() * Math.PI * 2; // Random phase offset
+        brightnessFactors[i] = 0.6 + Math.random() * 0.4; // Brightness variation
+        
+        // Movement speed
+        speeds[i] = Math.random() * 0.0002 + 0.0001;
+    }
+    
+    // Save the twinkle parameters to userData
+    particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    particles.setAttribute('scale', new THREE.BufferAttribute(scales, 1));
+    particles.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    
+    // MATERIALS
+    const sparkleTexture = textureLoader.load('/sparkle.png'); 
+    
+    const particleMaterial = new THREE.PointsMaterial({
+        size: particleSize,
+        map: sparkleTexture, // Enable texture for star-like appearance
+        transparent: true,
+        depthWrite: false,
+        depthTest: true,
+        blending: THREE.AdditiveBlending, // This creates the glow effect
+        vertexColors: true,
+        sizeAttenuation: true,
+        opacity: 0.95,              // Slightly transparent for better glow
+    });
+    
+    // Create the particle system
+    const particleSystem = new THREE.Points(particles, particleMaterial);
+    particleSystem.userData.speeds = speeds;
+    particleSystem.userData.time = 0;
+    particleSystem.userData.twinkleFrequencies = twinkleFrequencies;
+    particleSystem.userData.twinklePhases = twinklePhases;
+    particleSystem.userData.brightnessFactors = brightnessFactors;
+    particleSystem.userData.originalColors = colors.slice(); // Store original colors
+    scene.add(particleSystem);
+    
+    return particleSystem;
+}
+
+// Create the sparkle effect
+const sparkleSystem = createSparkleEffect();
+
+
+
+// Enhanced update function
+function updateSparkles(delta) {
+    if (!sparkleSystem) return;
+    
+    sparkleSystem.userData.time += delta;
+    
+    const positions = sparkleSystem.geometry.attributes.position.array;
+    const scales = sparkleSystem.geometry.attributes.scale.array;
+    const colors = sparkleSystem.geometry.attributes.color.array;
+    const originalColors = sparkleSystem.userData.originalColors;
+    const speeds = sparkleSystem.userData.speeds;
+    const time = sparkleSystem.userData.time;
+    const twinkleFrequencies = sparkleSystem.userData.twinkleFrequencies;
+    const twinklePhases = sparkleSystem.userData.twinklePhases;
+    
+    // Initialize particle behavior parameters if they don't exist
+    if (!sparkleSystem.userData.particleBehaviors) {
+        const particleBehaviors = new Array(positions.length / 3);
+        for (let i = 0; i < particleBehaviors.length; i++) {
+            particleBehaviors[i] = {
+               
+                // 1️⃣ Varied falling speeds
+                speedMultiplier: Math.random() * 1 + 0.02, // 0.5x to 2.0x base speed
+                
+                // 2️⃣ Non-Linear Motion
+                acceleration: Math.random() * 0.0003, // Random acceleration
+                maxSpeed: 0.01 + Math.random() * 0.01, // Maximum speed cap
+                
+                // 3️⃣ Random Drift & Swirling
+                swirlingFactor: Math.random() * 0.002 + 0.0001,
+                swirlingFrequency: Math.random() * 2 + 0.5,
+                swirlingOffset: Math.random() * Math.PI * 2,
+                horizontalDrift: (Math.random() - 0.5) * 0.003,
+                
+                // 4️⃣ Oscillation parameters
+                oscillateVertically: Math.random() > 0.7, // 30% of particles oscillate
+                oscillationFrequency: Math.random() * 2 + 1,
+                oscillationMagnitude: Math.random() * 0.0005 + 0.001,
+                
+                // 5️⃣ Varying Lifespan & Reset
+                lifespan: Math.random() * 10 + 5, // 5-15 seconds lifespan
+                birthTime: time - (Math.random() * 5), // Stagger birth times
+                resetPoint: -2 - Math.random() * 2, // Different reset heights
+                currentSpeed: 0 // Current speed (will be affected by acceleration)
+            };
+        }
+        sparkleSystem.userData.particleBehaviors = particleBehaviors;
+    }
+    
+    const behaviors = sparkleSystem.userData.particleBehaviors;
+    
+    // Global size pulse - make this more dramatic
+    sparkleSystem.material.size = 0.03 + Math.abs(Math.sin(time * 2)) * 0.04;
+    
+    for (let i = 0; i < positions.length / 3; i++) {
+        const behavior = behaviors[i];
+        
+        // Twinkle frequency and phase
+        const twinkleValue = Math.sin(time * twinkleFrequencies[i] + twinklePhases[i]);
+        
+        // GLOW - Color pulsing with brightness
+        const brightness = 1.2 + Math.max(0, twinkleValue) * 10;
+        colors[i * 3] = originalColors[i * 3] * brightness;
+        colors[i * 3 + 1] = originalColors[i * 3 + 1] * brightness;
+        colors[i * 3 + 2] = originalColors[i * 3 + 2] * brightness;
+        
+        // 2️⃣ NON-LINEAR MOTION: Apply acceleration up to max speed
+        behavior.currentSpeed = Math.min(
+            behavior.currentSpeed + behavior.acceleration * delta,
+            behavior.maxSpeed
+        );
+        
+        // 1️⃣ VARIED FALLING SPEEDS: Use behavior-specific speed
+        const fallSpeed = speeds[i] * behavior.speedMultiplier * (0.5 + Math.sin(time * 0.5) * 0.1);
+        
+        // 4️⃣ OSCILLATION: Some particles bobble up and down
+        let verticalOffset = 0;
+        if (behavior.oscillateVertically) {
+            verticalOffset = Math.sin(time * behavior.oscillationFrequency) * behavior.oscillationMagnitude;
+        }
+        
+        // Movement logic with all behaviors combined
+        positions[i * 3 + 1] -= fallSpeed + behavior.currentSpeed + verticalOffset;
+        
+        // 3️⃣ RANDOM DRIFT & SWIRLING: Add swirling motion
+        const swirl = behavior.swirlingFactor * 
+            Math.sin(time * behavior.swirlingFrequency + behavior.swirlingOffset);
+        positions[i * 3] += swirl + behavior.horizontalDrift;
+        positions[i * 3 + 2] += swirl * 0.8;
+        
+        // 5️⃣ VARYING LIFESPAN & RESET: Reset at custom point with different behaviors
+        if (positions[i * 3 + 1] < behavior.resetPoint) {
+            // Reset with more variation
+            positions[i * 3 + 1] = 3 + Math.random() * 2; // Random height at top
+            positions[i * 3] = (Math.random() - 0.5) * 10; // Random x position
+            positions[i * 3 + 2] = (Math.random() - 0.5) * 10; // Random z position
+            behavior.currentSpeed = 0; // Reset acceleration
+            behavior.birthTime = time; // Reset birth time
+            
+            // Occasionally change behavior properties for more variety
+            if (Math.random() > 0.7) {
+                behavior.swirlingFactor = Math.random() * 0.005 + 0.001;
+                behavior.oscillateVertically = Math.random() > 0.7;
+            }
+        }
+    }
+    
+    sparkleSystem.geometry.attributes.color.needsUpdate = true;
+    sparkleSystem.geometry.attributes.position.needsUpdate = true;
+    sparkleSystem.geometry.attributes.scale.needsUpdate = true;
+}
+
+// 🚀 Selective Bloom Effect Setup
+function setupSelectiveBloom() {
+
+    // Create a separate layer for bloom objects
+    const bloomLayer = new THREE.Layers();
+    bloomLayer.set(1); // Layer 1 for sparkles
+
+    // Apply bloom layer only to sparkles
+    sparkleSystem.layers.enable(1);
+
+    // 🎬 Render pass for the main scene
+    const renderScene = new RenderPass(scene, camera);
+
+    // UnrealBloomPass for sparkles only
+    const bloomPass = new UnrealBloomPass(
+        new THREE.Vector2(window.innerWidth, window.innerHeight),
+        4,  // Bloom Strength
+        1.5,   // Radius
+        1      // Threshold
+    );
+
+    // Custom shader for combining bloom & base render
+    const finalPass = new ShaderPass(
+        new THREE.ShaderMaterial({
+            uniforms: {
+                baseTexture: { value: null },
+                bloomTexture: { value: null }
+            },
+            vertexShader: `
+                varying vec2 vUv;
+                void main() {
+                    vUv = uv;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform sampler2D baseTexture;
+                uniform sampler2D bloomTexture;
+                varying vec2 vUv;
+                void main() {
+                    vec4 base = texture2D(baseTexture, vUv);
+                    vec4 bloom = texture2D(bloomTexture, vUv);
+                    gl_FragColor = base + vec4(bloom.rgb * 1.5, bloom.a); // Increase glow subtly
+                }
+            `
+        }), "baseTexture"
+    );
+    finalPass.needsSwap = true;
+
+    // 📸 Separate bloom rendering pipeline
+    const bloomComposer = new EffectComposer(renderer);
+    bloomComposer.renderToScreen = false;
+    bloomComposer.addPass(renderScene);
+    bloomComposer.addPass(bloomPass);
+
+    // 🎭 Final composite render (scene + bloom)
+    const finalComposer = new EffectComposer(renderer);
+    finalComposer.addPass(renderScene);
+    
+    // 🌟 ADD THIS LINE: Add the outline pass to the final composer
+    finalComposer.addPass(outlinePass);
+    
+    finalComposer.addPass(finalPass);
+
+    return {
+        bloomComposer,
+        finalComposer,
+        finalPass,
+        bloomLayer
+    };
+}
+
+// 🚀 Initialize the bloom effect
+const bloomEffect = setupSelectiveBloom();
+
+// 🛠️ Helper: Darken Non-Bloomed Objects 
+function darkenNonBloomed(obj) {
+
+    // Store scene background temporarily before changing it - commenting this out makes it washed out and glowy
+    if (obj === scene) {
+        obj.userData.originalBackground = obj.background;
+        obj.background = null; // Set to null (black) for bloom pass
+        return;
+    }
+    
+    if (obj.isMesh && !bloomEffect.bloomLayer.test(obj.layers)) {
+        obj.userData.originalMaterial = obj.material;
+        obj.material = new THREE.MeshBasicMaterial({ color: 0x000000 });
+    }
+}
+
+// 🎨 Restore Original Materials After Bloom Pass
+function restoreMaterial(obj) {
+    // Restore scene background
+    if (obj === scene && obj.userData.originalBackground !== undefined) {
+        obj.background = obj.userData.originalBackground;
+        obj.userData.originalBackground = undefined;
+        return;
+    }
+    
+    if (obj.userData.originalMaterial) {
+        obj.material = obj.userData.originalMaterial;
+        obj.userData.originalMaterial = null;
+    }
+}
+
 function animate() {
     stats.begin(); 
     requestAnimationFrame(animate);
@@ -781,26 +1050,75 @@ function animate() {
     }
   
     controls.update();
-    composer.render();
+    updateSparkles(delta); 
+    
+    // ✨ NEW: SELECTIVE BLOOM RENDERING PROCESS
+    // 1. First render the bloom pass with only sparkles visible
+    scene.traverse(darkenNonBloomed);
+
+    // Explicitly handle the scene background
+
+    darkenNonBloomed(scene);
+    bloomEffect.bloomComposer.render();
+    scene.traverse(restoreMaterial);
+
+    // Explicitly restore the scene background
+    restoreMaterial(scene);
+    
+    // 2. Use the bloom result as input to the final composite render
+    bloomEffect.finalPass.uniforms["bloomTexture"].value = 
+        bloomEffect.bloomComposer.renderTarget2.texture;
+    
+    // 3. Render the final composite to screen
+    bloomEffect.finalComposer.render();
+    
     stats.end(); // End performance measuring
   }
-  
+
   animate();
 
 // Add this callback to properly handle PBR materials
+// Replace your processPBRMaterials function with this streamlined version
 function processPBRMaterials(object) {
+    // Force anisotropy on all textures for better distance appearance
+    const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
+    
     object.traverse((node) => {
         if (node.isMesh && node.material) {
             const materials = Array.isArray(node.material) ? node.material : [node.material];
             materials.forEach(material => {
-                if (material.isMeshStandardMaterial) {
-                    material.transparent = false;
-                    material.opacity = 1.0;
-                    material.depthWrite = true;
-                    material.side = THREE.FrontSide;
+                if (material.isMeshStandardMaterial || material.type === 'MeshPhysicalMaterial') {
+                    // Apply proper mipmapping to ALL textures
+                    const textureTypes = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap'];
                     
-                    if (material.map) material.map.encoding = THREE.sRGBEncoding;
-                    if (material.emissiveMap) material.emissiveMap.encoding = THREE.sRGBEncoding;
+                    textureTypes.forEach(texType => {
+                        if (material[texType]) {
+                            const texture = material[texType];
+                            
+                            // These settings are critical for distance visibility
+                            texture.generateMipmaps = true;
+                            texture.minFilter = THREE.LinearMipmapLinearFilter;
+                            texture.magFilter = THREE.LinearFilter;
+                            texture.anisotropy = maxAnisotropy;
+                            
+                            // Set colorspace based on texture type
+                            if (texType === 'map' || texType === 'emissiveMap') {
+                                texture.colorSpace = THREE.SRGBColorSpace;
+                            } else {
+                                texture.colorSpace = THREE.LinearSRGBColorSpace;
+                            }
+                            
+                            // Force texture update
+                            texture.needsUpdate = true;
+                        }
+                    });
+                    
+                    // Prevent black materials at a distance with subtle emissive
+                    if (!material.emissive) {
+                        material.emissive = new THREE.Color(0x333333);
+                    }
+                    
+                    material.needsUpdate = true;
                 }
             });
         }
