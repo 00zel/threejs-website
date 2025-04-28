@@ -13,7 +13,7 @@ import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader.js';
 import Stats from 'https://cdn.skypack.dev/stats.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 
-// SETTINGS
+// SETTINGS AND CONSTANTS
 const SETTINGS = {
   CAMERA: {
     START_POSITION: new THREE.Vector3(0, 1.2, 6),
@@ -53,15 +53,22 @@ const gltfLoader = new GLTFLoader(loadingManager);
 gltfLoader.setDRACOLoader(dracoLoader);
 const BLOOM_LAYER = 1;
 
+
+
+// Add these variables at the top with your other declarations
 let isMouseDown = false;
 let mouseDownStartTime = 0;
-const lightHelpers = []; 
 
-//STATS GUI 
+// Add this at the top with other constants
+const lightHelpers = []; // To track all light helpers
+
+
+// Create a new Stats instance.
 const stats = new Stats();
 // Optionally, set which panel to show:
 // 0: fps, 1: ms, 2: mb, 3+: custom
 stats.showPanel(0); 
+
 // Append the stats DOM element to the body.
 document.body.appendChild(stats.dom);
 
@@ -77,13 +84,39 @@ const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerH
 camera.position.set(0, 1.2, 6);  // Position camera at (0, 1.2, 6), making it look at the center of the scene
 camera.lookAt(new THREE.Vector3(0, 0, 0));  // Make sure it looks at the origin (0, 0, 0)
 
-  
+// LIGHT ATTACHED TO CAMERA SETUP
+
+const cameraFlashlight = new THREE.SpotLight(0xff00ff, 100000, 20, Math.PI / 32, 0.5, 2); //color, intensity, distance, angle, penumbra, decay
+cameraFlashlight.position.set(0, 0, 0);
+
+
+cameraFlashlight.castShadow = true;
+
+// Create a target object and add it to the camera (not the scene)
+const flashlightTarget = new THREE.Object3D();
+flashlightTarget.position.set(0, 0, -5); // 1 unit in front of camera
+camera.add(flashlightTarget);
+scene.add(flashlightTarget);
+
+
+// Assign the target and add the light to the camera
+cameraFlashlight.target = flashlightTarget;
+camera.add(cameraFlashlight);
+
+const flashlightHelper = new THREE.SpotLightHelper(cameraFlashlight, 0xff00ff);
+flashlightHelper.userData.noBloom = true;
+
+
 //RENDER SCENE
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
+
+// Add these renderer settings near the beginning of your code, right after creating the renderer
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.outputEncoding = THREE.sRGBEncoding;
+
+// 2. Enable shadows in renderer (add after creating renderer)
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
 
@@ -96,6 +129,11 @@ controls.minDistance = 0.5;          // Allow closer zoom
 controls.maxDistance = 10;
 controls.maxPolarAngle = Math.PI;    // Allow full vertical rotation
 controls.target.set(0, 0.5, 0);      // Set target to face height instead of center
+
+// ENVIRONMENTAL LIGHTING
+
+// const ambientLight = new THREE.AmbientLight(0xFFFFFF, 1); // Soft white light
+// scene.add(ambientLight);
 
 // FUNCTION TO LOAD THE AVATAR
 function loadAvatar() {
@@ -227,7 +265,7 @@ window.addEventListener('click', (event) => {
     }
 });
 
-// REPLACE AVATAR ON CLICK WITH SELECTED GARMENT 
+// Function to replace the avatar with the clicked garment
 function replaceAvatar(garment, posedAvatarUrl) {
     console.log("Starting avatar replacement...");
     console.log("URL:", posedAvatarUrl);
@@ -299,17 +337,16 @@ const garmentToPosedAvatarMap = {
 loadAvatar();
 
 
-// BACKGROUND
-// const textureLoader = new THREE.TextureLoader();
-//const backgroundTexture = textureLoader.load('/black.png');
-//scene.background = backgroundTexture;
-scene.background = new THREE.Color(0x000000); 
+// HDRI BACKGROUND
+const textureLoader = new THREE.TextureLoader();
+const backgroundTexture = textureLoader.load('/black.png');
+scene.background = backgroundTexture;
 
-
-// POST PROCESSING SETUP FOR GLOW EFFECT
+// POST PROCESSING SETUP
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
 
+// OUTLINE PASS
 const outlinePass = new OutlinePass(new THREE.Vector2(window.innerWidth, window.innerHeight), scene, camera);
 outlinePass.edgeStrength = 0.5;      // Increased from 0.2
 outlinePass.edgeGlow = 10;        // Reduced from 1
@@ -379,7 +416,7 @@ function applyMaterialToAvatar() {
     });
 }
 
-//POST PROCESSING EFFECTS
+//BLOOM PASS
 const bloomPass = new UnrealBloomPass(
     new THREE.Vector2(window.innerWidth, window.innerHeight),
     2,    // strength
@@ -489,6 +526,13 @@ function loadGarment(filePath, index) {
         scene.add(garment);
       }
     );
+}
+
+// Add this helper function to toggle debug visualizations
+function toggleDebugHelpers(show) {
+    lightHelpers.forEach(helper => {
+        helper.visible = show;
+    });
 }
 
 garmentFiles.forEach((file, index) => {
@@ -641,8 +685,6 @@ window.addEventListener('keydown', (event) => {
     }
 });
 
-
-
 // Selective Bloom Effect Setup
 function setupSelectiveBloom() {
 
@@ -653,13 +695,6 @@ function setupSelectiveBloom() {
     // 🎬 Render pass for the main scene
     const renderScene = new RenderPass(scene, camera);
 
-    // UnrealBloomPass for sparkles only
-    const bloomPass = new UnrealBloomPass(
-        new THREE.Vector2(window.innerWidth, window.innerHeight),
-        4,  // Bloom Strength
-        1.5,   // Radius
-        1      // Threshold
-    );
 
     // Custom shader for combining bloom & base render
     const finalPass = new ShaderPass(
@@ -812,13 +847,17 @@ function animate() {
       window.avatar.rotation.y += 0.005;
     }
   
-    controls.update(); 
+    controls.update();
+
+    camera.updateMatrixWorld(); 
+flashlightHelper.update();
+
+console.log("Light world pos:", cameraFlashlight.getWorldPosition(new THREE.Vector3()));
+console.log("Target world pos:", cameraFlashlight.target.getWorldPosition(new THREE.Vector3()));
 
 
-
-
-
-camera.updateMatrixWorld(); 
+    cameraFlashlight.target.updateMatrixWorld();
+    flashlightHelper.update();
     
     // SELECTIVE BLOOM RENDERING PROCESS
     

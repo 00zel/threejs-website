@@ -13,7 +13,7 @@ import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader.js';
 import Stats from 'https://cdn.skypack.dev/stats.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 
-// SETTINGS
+// SETTINGS AND CONSTANTS
 const SETTINGS = {
   CAMERA: {
     START_POSITION: new THREE.Vector3(0, 1.2, 6),
@@ -52,16 +52,23 @@ dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5
 const gltfLoader = new GLTFLoader(loadingManager);
 gltfLoader.setDRACOLoader(dracoLoader);
 const BLOOM_LAYER = 1;
+let flashlightHelper; 
 
+
+// Add these variables at the top with your other declarations
 let isMouseDown = false;
 let mouseDownStartTime = 0;
-const lightHelpers = []; 
 
-//STATS GUI 
+// Add this at the top with other constants
+const lightHelpers = []; // To track all light helpers
+
+
+// Create a new Stats instance.
 const stats = new Stats();
 // Optionally, set which panel to show:
 // 0: fps, 1: ms, 2: mb, 3+: custom
 stats.showPanel(0); 
+
 // Append the stats DOM element to the body.
 document.body.appendChild(stats.dom);
 
@@ -77,13 +84,48 @@ const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerH
 camera.position.set(0, 1.2, 6);  // Position camera at (0, 1.2, 6), making it look at the center of the scene
 camera.lookAt(new THREE.Vector3(0, 0, 0));  // Make sure it looks at the origin (0, 0, 0)
 
+// LIGHT ATTACHED TO CAMERA SETUP
+
+const cameraFlashlight = new THREE.SpotLight(0xff00ff, 100000, 20, Math.PI / 32, 0.5, 2); //color, intensity, distance, angle, penumbra, decay
+cameraFlashlight.position.set(0, 0, 0);
+// cameraFlashlight.castShadow = true;
+
+// Create a target object and add it to the camera (not the scene)
+const flashlightTarget = new THREE.Object3D();
+flashlightTarget.position.set(0, 0, -5); // 1 unit in front of camera
+camera.add(flashlightTarget);
+scene.add(flashlightTarget);
+
+
+// Assign the target and add the light to the camera
+cameraFlashlight.target = flashlightTarget;
+camera.add(cameraFlashlight);
+
+flashlightHelper = new THREE.SpotLightHelper(cameraFlashlight, 0xff00ff);
+scene.add(flashlightHelper);
+
+flashlightHelper.userData.noBloom = true;
+cameraFlashlight.layers.enable(0);
+cameraFlashlight.target.layers.enable(0);
+
+const beam = new THREE.Mesh(
+    new THREE.ConeGeometry(0.2, 5, 32, 1, true),
+    new THREE.MeshBasicMaterial({ color: 0xff00ff, wireframe: true, transparent: true, opacity: 0.3 })
+  );
+  beam.position.set(0, 0, -2.5);
+  beam.rotation.x = -Math.PI / 2;
+  camera.add(beam);
   
 //RENDER SCENE
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
+
+// Add these renderer settings near the beginning of your code, right after creating the renderer
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.outputEncoding = THREE.sRGBEncoding;
+
+// 2. Enable shadows in renderer (add after creating renderer)
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
 
@@ -227,7 +269,7 @@ window.addEventListener('click', (event) => {
     }
 });
 
-// REPLACE AVATAR ON CLICK WITH SELECTED GARMENT 
+// Function to replace the avatar with the clicked garment
 function replaceAvatar(garment, posedAvatarUrl) {
     console.log("Starting avatar replacement...");
     console.log("URL:", posedAvatarUrl);
@@ -299,17 +341,16 @@ const garmentToPosedAvatarMap = {
 loadAvatar();
 
 
-// BACKGROUND
-// const textureLoader = new THREE.TextureLoader();
-//const backgroundTexture = textureLoader.load('/black.png');
-//scene.background = backgroundTexture;
-scene.background = new THREE.Color(0x000000); 
-
+// HDRI BACKGROUND
+const textureLoader = new THREE.TextureLoader();
+const backgroundTexture = textureLoader.load('/black.png');
+scene.background = backgroundTexture;
 
 // POST PROCESSING SETUP FOR GLOW EFFECT
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
 
+// Update outlinePass settings to be more performant but visible
 const outlinePass = new OutlinePass(new THREE.Vector2(window.innerWidth, window.innerHeight), scene, camera);
 outlinePass.edgeStrength = 0.5;      // Increased from 0.2
 outlinePass.edgeGlow = 10;        // Reduced from 1
@@ -491,6 +532,13 @@ function loadGarment(filePath, index) {
     );
 }
 
+// Add this helper function to toggle debug visualizations
+function toggleDebugHelpers(show) {
+    lightHelpers.forEach(helper => {
+        helper.visible = show;
+    });
+}
+
 garmentFiles.forEach((file, index) => {
     loadGarment(file.path, index);
 });
@@ -641,7 +689,213 @@ window.addEventListener('keydown', (event) => {
     }
 });
 
+// SPARKLE EFFECT SYSTEM
+function createSparkleEffect() {
+    // Settings for particles - increase size for more visibility
+    const particleCount = 20;
+    const particleSize = 1;
+    
+    // Create geometry for particles
+    const particles = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount * 3);
+    const scales = new Float32Array(particleCount);
+    const colors = new Float32Array(particleCount * 3);
+    const speeds = new Float32Array(particleCount);
+    
+    // Create arrays to store twinkling parameters
+    const twinkleFrequencies = new Float32Array(particleCount);
+    const twinklePhases = new Float32Array(particleCount);
+    const brightnessFactors = new Float32Array(particleCount);
+    
+    // Generate random positions, colors, and speeds
+    for (let i = 0; i < particleCount; i++) {
+      
+        // Position particles in a spherical volume around the scene
+        const radius = 3;
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos((Math.random() * 2) - 1);
+        
+        positions[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
+        positions[i * 3 + 1] = (Math.random() * 4) - 1; // Between -1 and 3
+        positions[i * 3 + 2] = radius * Math.sin(phi) * Math.sin(theta);
+        
+             // Random scale with bigger range
+             scales[i] = Math.random() * 0.8 + 0.4; // Larger variation (0.4-1.2)
+        
+        // Brighter colors - increase all color values
+        const colorChoice = Math.random();
+        if (colorChoice > 0.7) { // Light blue
+            colors[i * 3] = 1.2;     // R 
+            colors[i * 3 + 1] = 1; // G 
+            colors[i * 3 + 2] = 1.7;  // B
+        } else if (colorChoice > 0.4) { // Light yellow green
+            colors[i * 3] = 0.1;     // R
+            colors[i * 3 + 1] = 0.2;  // G
+            colors[i * 3 + 2] = 0.1;  // B 
+        } else { // Pure white (brighter)
+            colors[i * 3] = 1.0;     // R
+            colors[i * 3 + 1] = 1.0;  // G
+            colors[i * 3 + 2] = 1.0;  // B
+        }
+        
+        // Store custom twinkle parameters for each particle
+        twinkleFrequencies[i] = 3 + Math.random() * 7; // Between 3-10x speed
+        twinklePhases[i] = Math.random() * Math.PI * 2; // Random phase offset
+        brightnessFactors[i] = 0.6 + Math.random() * 0.4; // Brightness variation
+        
+        // Movement speed
+        speeds[i] = Math.random() * 0.0002 + 0.0001;
+    }
+    
+    // Save the twinkle parameters to userData
+    particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    particles.setAttribute('scale', new THREE.BufferAttribute(scales, 1));
+    particles.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    
+    // MATERIALS
+    const sparkleTexture = textureLoader.load('/sparkle.png'); 
+    
+    const particleMaterial = new THREE.PointsMaterial({
+        size: particleSize,
+        map: sparkleTexture, // Enable texture for star-like appearance
+        transparent: true,
+        depthWrite: false,
+        depthTest: true,
+        blending: THREE.AdditiveBlending, // This creates the glow effect
+        vertexColors: true,
+        sizeAttenuation: true,
+        opacity: 0.95,              // Slightly transparent for better glow
+    });
+    
+    // Create the particle system
+    const particleSystem = new THREE.Points(particles, particleMaterial);
+    particleSystem.userData.speeds = speeds;
+    particleSystem.userData.time = 0;
+    particleSystem.userData.twinkleFrequencies = twinkleFrequencies;
+    particleSystem.userData.twinklePhases = twinklePhases;
+    particleSystem.userData.brightnessFactors = brightnessFactors;
+    particleSystem.userData.originalColors = colors.slice(); // Store original colors
+    scene.add(particleSystem);
+    
+    return particleSystem;
+}
 
+// Create the sparkle effect
+const sparkleSystem = createSparkleEffect();
+
+
+
+// Enhanced update function
+function updateSparkles(delta) {
+    if (!sparkleSystem) return;
+    
+    sparkleSystem.userData.time += delta;
+    
+    const positions = sparkleSystem.geometry.attributes.position.array;
+    const scales = sparkleSystem.geometry.attributes.scale.array;
+    const colors = sparkleSystem.geometry.attributes.color.array;
+    const originalColors = sparkleSystem.userData.originalColors;
+    const speeds = sparkleSystem.userData.speeds;
+    const time = sparkleSystem.userData.time;
+    const twinkleFrequencies = sparkleSystem.userData.twinkleFrequencies;
+    const twinklePhases = sparkleSystem.userData.twinklePhases;
+    
+    // Initialize particle behavior parameters if they don't exist
+    if (!sparkleSystem.userData.particleBehaviors) {
+        const particleBehaviors = new Array(positions.length / 3);
+        for (let i = 0; i < particleBehaviors.length; i++) {
+            particleBehaviors[i] = {
+               
+                // 1️⃣ Varied falling speeds
+                speedMultiplier: Math.random() * 1 + 0.02, // 0.5x to 2.0x base speed
+                
+                // 2️⃣ Non-Linear Motion
+                acceleration: Math.random() * 0.0003, // Random acceleration
+                maxSpeed: 0.01 + Math.random() * 0.01, // Maximum speed cap
+                
+                // 3️⃣ Random Drift & Swirling
+                swirlingFactor: Math.random() * 0.002 + 0.0001,
+                swirlingFrequency: Math.random() * 2 + 0.5,
+                swirlingOffset: Math.random() * Math.PI * 2,
+                horizontalDrift: (Math.random() - 0.5) * 0.003,
+                
+                // 4️⃣ Oscillation parameters
+                oscillateVertically: Math.random() > 0.7, // 30% of particles oscillate
+                oscillationFrequency: Math.random() * 2 + 1,
+                oscillationMagnitude: Math.random() * 0.0005 + 0.001,
+                
+                // 5️⃣ Varying Lifespan & Reset
+                lifespan: Math.random() * 10 + 5, // 5-15 seconds lifespan
+                birthTime: time - (Math.random() * 5), // Stagger birth times
+                resetPoint: -2 - Math.random() * 2, // Different reset heights
+                currentSpeed: 0 // Current speed (will be affected by acceleration)
+            };
+        }
+        sparkleSystem.userData.particleBehaviors = particleBehaviors;
+    }
+    
+    const behaviors = sparkleSystem.userData.particleBehaviors;
+    
+    // Global size pulse - make this more dramatic
+    sparkleSystem.material.size = 0.03 + Math.abs(Math.sin(time * 2)) * 0.04;
+    
+    for (let i = 0; i < positions.length / 3; i++) {
+        const behavior = behaviors[i];
+        
+        // Twinkle frequency and phase
+        const twinkleValue = Math.sin(time * twinkleFrequencies[i] + twinklePhases[i]);
+        
+        // GLOW - Color pulsing with brightness
+        const brightness = 1.2 + Math.max(0, twinkleValue) * 10;
+        colors[i * 3] = originalColors[i * 3] * brightness;
+        colors[i * 3 + 1] = originalColors[i * 3 + 1] * brightness;
+        colors[i * 3 + 2] = originalColors[i * 3 + 2] * brightness;
+        
+        // 2️⃣ NON-LINEAR MOTION: Apply acceleration up to max speed
+        behavior.currentSpeed = Math.min(
+            behavior.currentSpeed + behavior.acceleration * delta,
+            behavior.maxSpeed
+        );
+        
+        // 1️⃣ VARIED FALLING SPEEDS: Use behavior-specific speed
+        const fallSpeed = speeds[i] * behavior.speedMultiplier * (0.5 + Math.sin(time * 0.5) * 0.1);
+        
+        // 4️⃣ OSCILLATION: Some particles bobble up and down
+        let verticalOffset = 0;
+        if (behavior.oscillateVertically) {
+            verticalOffset = Math.sin(time * behavior.oscillationFrequency) * behavior.oscillationMagnitude;
+        }
+        
+        // Movement logic with all behaviors combined
+        positions[i * 3 + 1] -= fallSpeed + behavior.currentSpeed + verticalOffset;
+        
+        // 3️⃣ RANDOM DRIFT & SWIRLING: Add swirling motion
+        const swirl = behavior.swirlingFactor * 
+            Math.sin(time * behavior.swirlingFrequency + behavior.swirlingOffset);
+        positions[i * 3] += swirl + behavior.horizontalDrift;
+        positions[i * 3 + 2] += swirl * 0.8;
+        
+        // 5️⃣ VARYING LIFESPAN & RESET: Reset at custom point with different behaviors
+        if (positions[i * 3 + 1] < behavior.resetPoint) {
+            // Reset with more variation
+            positions[i * 3 + 1] = 3 + Math.random() * 2; // Random height at top
+            positions[i * 3] = (Math.random() - 0.5) * 10; // Random x position
+            positions[i * 3 + 2] = (Math.random() - 0.5) * 10; // Random z position
+            behavior.currentSpeed = 0; // Reset acceleration
+            behavior.birthTime = time; // Reset birth time
+            
+            // Occasionally change behavior properties for more variety
+            if (Math.random() > 0.7) {
+                behavior.swirlingFactor = Math.random() * 0.005 + 0.001;
+                behavior.oscillateVertically = Math.random() > 0.7;
+            }
+        }
+    }
+    
+    sparkleSystem.geometry.attributes.color.needsUpdate = true;
+    sparkleSystem.geometry.attributes.position.needsUpdate = true;
+    sparkleSystem.geometry.attributes.scale.needsUpdate = true;
+}
 
 // Selective Bloom Effect Setup
 function setupSelectiveBloom() {
@@ -649,6 +903,9 @@ function setupSelectiveBloom() {
     // Create a separate layer for bloom objects
     const bloomLayer = new THREE.Layers();
     bloomLayer.set(1); // Layer 1 for sparkles
+
+    // Apply bloom layer only to sparkles
+    sparkleSystem.layers.enable(1);
 
     // 🎬 Render pass for the main scene
     const renderScene = new RenderPass(scene, camera);
@@ -814,11 +1071,16 @@ function animate() {
   
     controls.update(); 
 
+    updateSparkles(delta); 
+
 
 
 
 
 camera.updateMatrixWorld(); 
+cameraFlashlight.target.updateMatrixWorld();
+if (flashlightHelper) flashlightHelper.update();
+
     
     // SELECTIVE BLOOM RENDERING PROCESS
     

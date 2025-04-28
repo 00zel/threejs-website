@@ -13,7 +13,7 @@ import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader.js';
 import Stats from 'https://cdn.skypack.dev/stats.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 
-// SETTINGS
+// SETTINGS AND CONSTANTS
 const SETTINGS = {
   CAMERA: {
     START_POSITION: new THREE.Vector3(0, 1.2, 6),
@@ -51,41 +51,52 @@ const dracoLoader = new DRACOLoader(loadingManager);
 dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/'); // Use CDN path
 const gltfLoader = new GLTFLoader(loadingManager);
 gltfLoader.setDRACOLoader(dracoLoader);
-const BLOOM_LAYER = 1;
 
 let isMouseDown = false;
 let mouseDownStartTime = 0;
 const lightHelpers = []; 
 
-//STATS GUI 
 const stats = new Stats();
-// Optionally, set which panel to show:
 // 0: fps, 1: ms, 2: mb, 3+: custom
 stats.showPanel(0); 
-// Append the stats DOM element to the body.
 document.body.appendChild(stats.dom);
-
-// CAMERA START POSITION
-const cameraStartPosition = new THREE.Vector3(0, 1.2, 6);
-const cameraStartLookAt = new THREE.Vector3(0, 0, 0);
 
 // SCENE SETUP
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
-
-// CAMERA SETUP 
 camera.position.set(0, 1.2, 6);  // Position camera at (0, 1.2, 6), making it look at the center of the scene
 camera.lookAt(new THREE.Vector3(0, 0, 0));  // Make sure it looks at the origin (0, 0, 0)
 
-  
-//RENDER SCENE
+
+//FLASHLIGHT
+const flashlight = new THREE.SpotLight(0xffffff, 2, 100, Math.PI / 2, 1, 2); // color, intensity, distance, angle, penumbra, decay
+flashlight.castShadow = true;
+flashlight.shadow.mapSize.width = 1024;
+flashlight.shadow.mapSize.height = 1024;
+scene.add(flashlight);
+const flashlightTarget = new THREE.Object3D();
+flashlightTarget.position.set(0, 0, 0);
+scene.add(flashlightTarget);
+flashlight.target = flashlightTarget;
+
+
+
+
+
+
+
+
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
-renderer.setPixelRatio(window.devicePixelRatio);
-renderer.outputEncoding = THREE.sRGBEncoding;
+
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+
+
+renderer.outputEncoding = THREE.sRGBEncoding; // For correct brightness
+
 
 //ORBIT CONTROLS
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -99,8 +110,8 @@ controls.target.set(0, 0.5, 0);      // Set target to face height instead of cen
 
 // FUNCTION TO LOAD THE AVATAR
 function loadAvatar() {
-    gltfLoader.load(  
-        '/public/Avatar_Base2.glb',
+    gltfLoader.load(  // Use gltfLoader instead of creating a new GLTFLoader
+        '/Avatar_Base2.glb',
         (gltf) => {
             const avatar = gltf.scene;
             processPBRMaterials(avatar); // Add this line
@@ -122,27 +133,45 @@ function loadAvatar() {
 
             avatar.add(keyLight, rimLight, fillLight);
 
-            avatar.userData.noBloom = true;
-
-
-
-            // Add visual helpers for debugging light positions
-        //    const keyLightHelper = new THREE.PointLightHelper(keyLight, 10, 0xff0000);
-         //   scene.add(keyLightHelper);
-
-        //    const rimLightHelper = new THREE.PointLightHelper(rimLight, 10, 0x00ff00);
-        //    scene.add(rimLightHelper);
-
-        //    const fillLightHelper = new THREE.PointLightHelper(fillLight, 10, 0x0000ff);
-        //    scene.add(fillLightHelper);
-
            window.avatar = avatar;
            scene.add(avatar);
         },
     );
 }
 
-//CLICK EVENT
+
+// FUNCTION TO APPLY GLOW TO BASE AVATAR
+function applyGlowToBaseAvatar() {
+    if (!window.avatar) return;
+
+    outlinePass.selectedObjects = [window.avatar];
+
+    // Gradually increase glow
+    gsap.fromTo(outlinePass, 
+        { edgeStrength: 1.5 },  // Start with medium glow
+        { edgeStrength: 3.5, duration: 1.5, ease: "power2.out" } // Max glow
+    );
+
+    // Fade out the glow after 2 seconds
+    setTimeout(() => {
+        fadeOutGlowEffect(window.avatar, 2.0);
+    }, 2000);
+}
+
+//  FUNCTION TO FADE OUT GLOW
+function fadeOutGlowEffect(object, duration = 2.0) {
+    if (!object) return;
+
+    gsap.to(outlinePass, {
+        edgeStrength: 0,  
+        duration: duration,  
+        ease: "power2.out", 
+        onComplete: () => {
+            outlinePass.selectedObjects = [];
+        }
+    });
+}
+
 window.addEventListener('click', (event) => {
     raycaster.setFromCamera(mouse, camera);
     const intersects = raycaster.intersectObjects(garments.map(g => g.object), true);
@@ -227,7 +256,26 @@ window.addEventListener('click', (event) => {
     }
 });
 
-// REPLACE AVATAR ON CLICK WITH SELECTED GARMENT 
+
+
+
+// Function to add glow effect to the avatar --- this is the rececing glow
+function addGlowEffect(object) {
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+
+    const outlinePass = new OutlinePass(new THREE.Vector2(window.innerWidth, window.innerHeight), scene, camera);
+    outlinePass.edgeStrength = 25;
+    outlinePass.edgeGlow = 10;
+    outlinePass.edgeThickness = 1.0;
+    outlinePass.visibleEdgeColor.set(0xfddeff);
+    outlinePass.hiddenEdgeColor.set(0x000000);
+    outlinePass.selectedObjects = [object];
+    composer.addPass(outlinePass);
+}
+
+// Function to replace the avatar with the clicked garment
+
 function replaceAvatar(garment, posedAvatarUrl) {
     console.log("Starting avatar replacement...");
     console.log("URL:", posedAvatarUrl);
@@ -247,36 +295,25 @@ function replaceAvatar(garment, posedAvatarUrl) {
             newAvatar.position.set(0, -0.6, 0);
             
             // Add the same lights as the original avatar
-            const keyLight = new THREE.PointLight(0xFFFFFF, 13, 10, 2); // white color, intensity, distance, decay
+            const keyLight = new THREE.PointLight(0xFFFFFF, 4, 10, 2); // white color, intensity, distance, decay
             keyLight.position.set(-100, 150, 100);
             keyLight.castShadow = true;
 
-            const rimLight = new THREE.PointLight(0xFFFFFF, 13, 50, 1); // purple FFA0B0
+            const rimLight = new THREE.PointLight(0xFFFFFF, 3, 10, 1); // purple FFA0B0
             rimLight.position.set(-100, 130, -100);
 
-            const fillLight = new THREE.PointLight(0xFFFFFF, 13, 50, 1); // green DCFFCB
+            const fillLight = new THREE.PointLight(0xFFFFFF, 3, 10, 1); // green DCFFCB
             fillLight.position.set(100, 150, -100);
 
-            const highLight = new THREE.PointLight(0xFFFFFF, 15, 50, 1);
-            highLight.position.set(100, 130, 100); 
-
-            newAvatar.add(keyLight, rimLight, fillLight, highLight);
+            newAvatar.add(keyLight, rimLight, fillLight);
             
             // Optional: Add debug helpers if needed
             
             const keyLightHelper = new THREE.PointLightHelper(keyLight, 10, 0xff0000);
             const rimLightHelper = new THREE.PointLightHelper(rimLight, 10, 0x00ff00);
             const fillLightHelper = new THREE.PointLightHelper(fillLight, 10, 0x0000ff);
-            const highLightHelper = new THREE.PointLightHelper(fillLight, 10, 0x0f0f0f);
             scene.add(keyLightHelper, rimLightHelper, fillLightHelper);
             
-            console.log("Avatar material check:");
-            gltf.scene.traverse(node => {
-                if (node.isMesh) {
-                    console.log(`- ${node.name}: ${node.material.type}`, 
-                        node.material.map ? "✓ has texture" : "⚠️ no texture");
-                }
-            });
             
             window.avatar = newAvatar;
             scene.add(newAvatar);
@@ -290,7 +327,7 @@ function replaceAvatar(garment, posedAvatarUrl) {
 const garmentToPosedAvatarMap = {
     'jumpsuit': '/public/Jumpsuit_Posed.glb',
     'charam': '/public/CharaM_Posed.glb',
-    'domi': '/public/Domi_Posed.glb',
+    'charaw': '/public/CharaW_Posed.glb',
     'puffer': '/public/Puffer_Posed.glb',
     'nb1': '/public/NB1_Posed.glb'
 };
@@ -299,24 +336,25 @@ const garmentToPosedAvatarMap = {
 loadAvatar();
 
 
-// BACKGROUND
+// HDRI BACKGROUND
 // const textureLoader = new THREE.TextureLoader();
-//const backgroundTexture = textureLoader.load('/black.png');
-//scene.background = backgroundTexture;
-scene.background = new THREE.Color(0x000000); 
+// const backgroundTexture = textureLoader.load('/black.png');
+// scene.background = backgroundTexture;
+scene.background = new THREE.Color(0x000000);
 
 
 // POST PROCESSING SETUP FOR GLOW EFFECT
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
 
+// Update outlinePass settings to be more performant but visible
 const outlinePass = new OutlinePass(new THREE.Vector2(window.innerWidth, window.innerHeight), scene, camera);
 outlinePass.edgeStrength = 0.5;      // Increased from 0.2
 outlinePass.edgeGlow = 10;        // Reduced from 1
 outlinePass.edgeThickness = 1;     // Reduced from 10
 outlinePass.pulsePeriod = 0;       // Disable pulse effect
 outlinePass.visibleEdgeColor.set(0xFFFFFF); //fddeff
-outlinePass.hiddenEdgeColor.set(0x222222);
+// outlinePass.hiddenEdgeColor.set(0x000000);
 composer.addPass(outlinePass);
 
 function applyMaterialMaps(mesh, materialMaps) {
@@ -379,31 +417,59 @@ function applyMaterialToAvatar() {
     });
 }
 
-//POST PROCESSING EFFECTS
-const bloomPass = new UnrealBloomPass(
-    new THREE.Vector2(window.innerWidth, window.innerHeight),
-    2,    // strength
-    0.8,    // radius
-    0.3     // threshold
-);
-
-bloomPass.threshold = 0.9;     // Only bloom pixels brighter than this value (1.0 = white)
-bloomPass.strength = 0.3;      // Keep bloom strength moderate
-bloomPass.radius = 0.4;        // Keep the glow radius tight
-
-composer.addPass(bloomPass);
-
-
-
-
 // ✅ GARMENT FILES
 const garmentFiles = [
     { path: '/Puffer.glb', offset: 0 },
     { path: '/CharaM.glb', offset: 1 },
-    { path: '/Domi.glb', offset: 2 },
+    { path: '/CharaW.glb', offset: 2 },
     { path: '/Jumpsuit.glb', offset: 3 },
     { path: '/NB1.glb', offset: 4 }
 ];
+
+
+const garmentTextures = {
+    'Puffer': {
+         diffuse: '/textures/Jumpsuit_Jumpsuit_BaseColor.jpg',
+        normal: '/textures/Jumpsuit_Jumpsuit_Normal.jpg',
+        roughness: '/textures/Jumpsuit_Jumpsuit_roughness.jpg',
+    },
+    'CharaM': {
+        diffuse: '/textures/Jumpsuit_Jumpsuit_BaseColor.jpg',
+        normal: '/textures/Jumpsuit_Jumpsuit_Normal.jpg',
+        roughness: '/textures/Jumpsuit_Jumpsuit_roughness.jpg',
+    },
+    'CharaW': {
+        diffuse: '/textures/Jumpsuit_Jumpsuit_BaseColor.jpg',
+        normal: '/textures/Jumpsuit_Jumpsuit_Normal.jpg',
+        roughness: '/textures/Jumpsuit_Jumpsuit_roughness.jpg',
+    },
+   'Jumpsuit': [
+        { // Material 1 (Main Fabric)
+            diffuse: '/textures/Jumpsuit_Jumpsuit_BaseColor.jpg',
+            normal: '/textures/Jumpsuit_Jumpsuit_Normal.jpg',
+            roughness: '/textures/Jumpsuit_Jumpsuit_Roughness.jpg',
+            metalness: '/textures/Jumpsuit_Jumpsuit_Metallic.jpg'
+        },
+        { // Material 2 (Zippers or Metal Accents)
+            diffuse: '/textures/Jumpsuit_Belt_BaseColor.jpg',
+            normal: '/textures/Jumpsuit_Belt_Normal.jpg',
+            roughness: '/textures/Jumpsuit_Belt_Roughness.jpg',
+            metalness: '/textures/Jumpsuit_Belt_Metallic.jpg'
+        },
+        { // Material 3 (Lace/Mesh)
+            diffuse: '/textures/Jumpsuit_Lace_BaseColor.png',
+            normal: '/textures/Jumpsuit_Lace_Normal.jpg',
+            roughness: '/textures/Jumpsuit_Lace_Roughness.jpg',
+            alpha: '/textures/Jumpsuit_Lace_Opacity.png' // Transparency for lace
+        }
+    ],
+    'NB1': {
+        diffuse: '/textures/Jumpsuit_Jumpsuit_BaseColor.jpg',
+        normal: '/textures/Jumpsuit_Jumpsuit_Normal.jpg',
+        roughness: '/textures/Jumpsuit_Jumpsuit_roughness.jpg',
+       // alpha: '/textures/NB1_alpha.jpg', // Example for lace transparency
+    }
+};
 
 
 // LOAD GARMENTS AND POSITION THEM
@@ -413,11 +479,7 @@ function loadGarment(filePath, index) {
       filePath,
       (gltf) => {
         const garment = gltf.scene;
-        processPBRMaterials(garment); 
-        
-        // Add these two lines to fix the Puffer mesh issue
-        garment.userData.sourceFile = filePath;
-        garment.name = filePath.split('/').pop().split('.')[0].toLowerCase();
+        processPBRMaterials(garment); // Add this line
         
         // Basic garment setup
         garment.scale.set(0.5, 0.5, 0.5);
@@ -430,8 +492,6 @@ function loadGarment(filePath, index) {
             0,
             Math.sin(angle) * radius
         );
-        garment.userData.noBloom = true;
-
                 
         // 1. Key light - Main light, brightest, 45° front-right
         const keyLight = new THREE.PointLight(0xffffff, 1, 1); // white color, intensity, distance
@@ -444,24 +504,18 @@ function loadGarment(filePath, index) {
         garment.add(fillLight);
         
         // 3. Rim light - Behind subject for edge definition
-    //    const rimLight = new THREE.PointLight(0xFFFFFF, 1.5, 1); // pink ffd6f6
-    //    rimLight.position.set(1, 1, -1);
-    //    garment.add(rimLight);
-        
-        // 4. Highlight light - Top light for specific highlights
-      //  const highlightLight = new THREE.PointLight(0xFFFFFF, 1.5, 1); // ice blue D7F1FF
-      //  highlightLight.position.set(-1, 1, -1);
-     //   garment.add(highlightLight);
+        const rimLight = new THREE.PointLight(0xFFFFFF, 1, 1); // pink ffd6f6
+        rimLight.position.set(1, 1, -1);
+        garment.add(rimLight);
         
         // Light helpers - only create them if debug mode is enabled
         if (SETTINGS.DEBUG) {
             const keyHelper = new THREE.PointLightHelper(keyLight, 0.3);
             const fillHelper = new THREE.PointLightHelper(fillLight, 0.3);
-          //  const rimHelper = new THREE.PointLightHelper(rimLight, 0.3);
-          //  const highlightHelper = new THREE.PointLightHelper(highlightLight, 0.3);
+            const rimHelper = new THREE.PointLightHelper(rimLight, 0.3);
             
-            lightHelpers.push(keyHelper, fillHelper);
-            scene.add(keyHelper, fillHelper);
+            lightHelpers.push(keyHelper, fillHelper, rimHelper);
+            scene.add(keyHelper, fillHelper, rimHelper);
             
             // Add cleanup method to the garment
             garment.userData.cleanupHelpers = () => {
@@ -489,6 +543,13 @@ function loadGarment(filePath, index) {
         scene.add(garment);
       }
     );
+}
+
+// Add this helper function to toggle debug visualizations
+function toggleDebugHelpers(show) {
+    lightHelpers.forEach(helper => {
+        helper.visible = show;
+    });
 }
 
 garmentFiles.forEach((file, index) => {
@@ -530,6 +591,8 @@ function getObjectUnderMouse() {
     
     return selectedObject;
 }
+
+// Then in your event listeners, replace the repeated raycasting code with:
 window.addEventListener('mousemove', (event) => {
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -564,7 +627,7 @@ window.addEventListener('mousedown', (event) => {
         mouseDownStartTime = Date.now();
         selectedGarment = clickedGarment;
         outlinePass.selectedObjects = [selectedGarment];
-        outlinePass.edgeStrength = SETTINGS.GLOW.DEFAULT; 
+        outlinePass.edgeStrength = SETTINGS.GLOW.DEFAULT; // Start with default glow
     }
 });
 
@@ -641,111 +704,6 @@ window.addEventListener('keydown', (event) => {
     }
 });
 
-
-
-// Selective Bloom Effect Setup
-function setupSelectiveBloom() {
-
-    // Create a separate layer for bloom objects
-    const bloomLayer = new THREE.Layers();
-    bloomLayer.set(1); // Layer 1 for sparkles
-
-    // 🎬 Render pass for the main scene
-    const renderScene = new RenderPass(scene, camera);
-
-    // UnrealBloomPass for sparkles only
-    const bloomPass = new UnrealBloomPass(
-        new THREE.Vector2(window.innerWidth, window.innerHeight),
-        4,  // Bloom Strength
-        1.5,   // Radius
-        1      // Threshold
-    );
-
-    // Custom shader for combining bloom & base render
-    const finalPass = new ShaderPass(
-        new THREE.ShaderMaterial({
-            uniforms: {
-                baseTexture: { value: null },
-                bloomTexture: { value: null }
-            },
-            vertexShader: `
-                varying vec2 vUv;
-                void main() {
-                    vUv = uv;
-                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-                }
-            `,
-            fragmentShader: `
-                uniform sampler2D baseTexture;
-                uniform sampler2D bloomTexture;
-                varying vec2 vUv;
-                void main() {
-                    vec4 base = texture2D(baseTexture, vUv);
-                    vec4 bloom = texture2D(bloomTexture, vUv);
-                    gl_FragColor = base + vec4(bloom.rgb * 1.5, bloom.a); // Increase glow subtly
-                }
-            `
-        }), "baseTexture"
-    );
-    finalPass.needsSwap = true;
-
-    // 📸 Separate bloom rendering pipeline
-    const bloomComposer = new EffectComposer(renderer);
-    bloomComposer.renderToScreen = false;
-    bloomComposer.addPass(renderScene);
-    bloomComposer.addPass(bloomPass);
-
-    // 🎭 Final composite render (scene + bloom)
-    const finalComposer = new EffectComposer(renderer);
-    finalComposer.addPass(renderScene);
-    
-    // 🌟 ADD THIS LINE: Add the outline pass to the final composer
-    finalComposer.addPass(outlinePass);
-    
-    finalComposer.addPass(finalPass);
-
-    return {
-        bloomComposer,
-        finalComposer,
-        finalPass,
-        bloomLayer
-    };
-}
-
-// Initialize the bloom effect
-const bloomEffect = setupSelectiveBloom();
-
-// Darken Non-Bloomed Objects 
-function darkenNonBloomed(obj) {
-    if (obj === scene) {
-        obj.userData.originalBackground = obj.background;
-        obj.background = null;
-        return;
-      }
-    
-      if (
-        obj.isMesh &&
-        !bloomEffect.bloomLayer.test(obj.layers) &&
-        obj.userData.noBloom !== true
-      ) {
-        obj.userData.originalMaterial = obj.material;
-        obj.material = new THREE.MeshBasicMaterial({ color: 0x000000 });
-      }}
-
-// Restore Original Materials After Bloom Pass
-function restoreMaterial(obj) {
-    if (obj === scene && obj.userData.originalBackground !== undefined) {
-      obj.background = obj.userData.originalBackground;
-      obj.userData.originalBackground = undefined;
-      return;
-    }
-  
-    if (obj.userData.originalMaterial) {
-      obj.material = obj.userData.originalMaterial;
-      obj.userData.originalMaterial = null;
-    }
-  }
-
 function animate() {
     stats.begin(); 
     requestAnimationFrame(animate);
@@ -791,12 +749,12 @@ function animate() {
   
       // Set self-rotation speed (optionally slowing down the hovered garment)
       if (object.userData.rotationSpeed === undefined || isNaN(object.userData.rotationSpeed)) {
-        object.userData.rotationSpeed = SETTINGS.ROTATION.BASE_SPEED;  // Fixed - use the constant you declared
+        object.userData.rotationSpeed = SETTINGS.ROTATION.BASE_SPEED;  // Fixed @ the delcared constant
       }
       const targetRotationSpeed = object.userData.isHovered ? 0.1 : SETTINGS.ROTATION.BASE_SPEED;
 
       // Slow rotation speed
-      object.userData.rotationSpeed = THREE.MathUtils.lerp(object.userData.rotationSpeed, targetRotationSpeed, 0.02);
+      object.userData.rotationSpeed = THREE.MathUtils.lerp(object.userData.rotationSpeed, targetRotationSpeed, 0.01);
   
       // Apply self-rotation
       object.rotation.y += object.userData.rotationSpeed * delta + Math.sin(object.userData.rotationOffset) * 0.01;
@@ -812,87 +770,84 @@ function animate() {
       window.avatar.rotation.y += 0.005;
     }
   
-    controls.update(); 
-
-
-
-
-
-camera.updateMatrixWorld(); 
+    controls.update();
+    composer.render();
     
-    // SELECTIVE BLOOM RENDERING PROCESS
+flashlight.target.updateMatrixWorld();
+    if (flashlightHelper) flashlightHelper.update();    
+    console.log("Scene Camera:", composer.passes[0].camera?.uuid);
     
-    // 1. First render the bloom pass with only sparkles visible
-    scene.traverse(darkenNonBloomed);
 
-    // Explicitly handle the scene background
-
-    darkenNonBloomed(scene);
-    bloomEffect.bloomComposer.render();
-    scene.traverse(restoreMaterial);
-
-    // Explicitly restore the scene background
-    restoreMaterial(scene);
+    // Always update all light helpers
+    lightHelpers.forEach(helper => {
+        if (helper && helper.update) {
+            helper.update();
+        }
+    }
+     
+    );
     
-    // 2. Use the bloom result as input to the final composite render
-    bloomEffect.finalPass.uniforms["bloomTexture"].value = 
-        bloomEffect.bloomComposer.renderTarget2.texture;
-    
-    // 3. Render the final composite to screen
-    bloomEffect.finalComposer.render();
-
     stats.end(); // End performance measuring
-
   }
-  
-
   
   animate();
 
+
+
+
+
+
+
+
+
+
 // Add this callback to properly handle PBR materials
-// Replace your processPBRMaterials function with this streamlined version
 function processPBRMaterials(object) {
-    // Force anisotropy on all textures for better distance appearance
-    const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
-    
     object.traverse((node) => {
         if (node.isMesh && node.material) {
             const materials = Array.isArray(node.material) ? node.material : [node.material];
             materials.forEach(material => {
-                if (material.isMeshStandardMaterial || material.type === 'MeshPhysicalMaterial') {
-                    // Apply proper mipmapping to ALL textures
-                    const textureTypes = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap'];
+                if (material.isMeshStandardMaterial) {
+                    material.transparent = false;
+                    material.opacity = 1.0;
+                    material.depthWrite = true;
+                    material.side = THREE.FrontSide;
                     
-                    textureTypes.forEach(texType => {
-                        if (material[texType]) {
-                            const texture = material[texType];
-                            
-                            // These settings are critical for distance visibility
-                            texture.generateMipmaps = true;
-                            texture.minFilter = THREE.LinearMipmapLinearFilter;
-                            texture.magFilter = THREE.LinearFilter;
-                            texture.anisotropy = maxAnisotropy;
-                            
-                            // Set colorspace based on texture type
-                            if (texType === 'map' || texType === 'emissiveMap') {
-                                texture.colorSpace = THREE.SRGBColorSpace;
-                            } else {
-                                texture.colorSpace = THREE.LinearSRGBColorSpace;
-                            }
-                            
-                            // Force texture update
-                            texture.needsUpdate = true;
-                        }
-                    });
-                    
-                    // Prevent black materials at a distance with subtle emissive
-                    if (!material.emissive) {
-                        material.emissive = new THREE.Color(0x333333);
-                    }
-                    
-                    material.needsUpdate = true;
+                    if (material.map) material.map.encoding = THREE.sRGBEncoding;
+                    if (material.emissiveMap) material.emissiveMap.encoding = THREE.sRGBEncoding;
                 }
             });
         }
     });
 }
+
+// Add this function at the end of your file
+function createLightHelpers() {
+    // 1. First create helpers for the avatar lights
+    if (window.avatar) {
+        window.avatar.traverse(node => {
+            if (node.isLight) {
+                const helper = new THREE.PointLightHelper(node, 0.3, node.color);
+                scene.add(helper);
+                lightHelpers.push(helper);
+            }
+        });
+    }
+    
+    // 2. Create helpers for all garment lights
+    garments.forEach(({ object }) => {
+        object.traverse(node => {
+            if (node.isLight) {
+                const helper = new THREE.PointLightHelper(node, 0.3, node.color);
+                scene.add(helper);
+                lightHelpers.push(helper);
+            }
+        });
+    });
+    
+    console.log(`Created ${lightHelpers.length} light helpers`);
+}
+
+// Call this function after your garments and avatar are loaded
+// Add this line at the end of your file
+setTimeout(createLightHelpers, 2000); // Wait 2 seconds for everything to load
