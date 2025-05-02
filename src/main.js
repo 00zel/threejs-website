@@ -45,7 +45,7 @@ let movementEnabled = true;
 const keysPressed = {};
 let avatarReplaced = false; // Flag to track if the avatar has been replaced
 let currentHoveredGarment = null;
-let garmentSelected = false; // Add this flag at the top with your other constants
+let garmentSelected = false; 
 const loadingManager = new THREE.LoadingManager();
 const dracoLoader = new DRACOLoader(loadingManager);
 dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/'); // Use CDN path
@@ -56,6 +56,14 @@ const BLOOM_LAYER = 1;
 let isMouseDown = false;
 let mouseDownStartTime = 0;
 const lightHelpers = []; 
+
+let currentAvatar = window.avatar || null;
+let currentPosedAvatar = null;
+let isLoadingPosedAvatar = false;
+let garmentsVisible = true;
+let refreshArrow;
+
+
 
 //STATS GUI 
 const stats = new Stats();
@@ -110,14 +118,14 @@ function loadAvatar() {
             avatar.position.set(0, -0.6, 0);
 
             // ATTACH LIGHTS TO THE AVATAR
-             const keyLight = new THREE.PointLight(0xFFFFFF, 15, 10, 2); // white
+             const keyLight = new THREE.PointLight(0xFFFFFF, 10, 10, 2); // white
             keyLight.position.set(80, 140, 80);
             keyLight.castShadow = true;
 
-            const rimLight = new THREE.PointLight(0xFFFFFF, 4, 10, 2); // FFA0B0 purple
+            const rimLight = new THREE.PointLight(0xFFFFFF, 5, 10, 2); // FFA0B0 purple
             rimLight.position.set(-80, 130, -80);
 
-            const fillLight = new THREE.PointLight(0xFFFFFF, 4, 10, 2); // DCFFCB green 
+            const fillLight = new THREE.PointLight(0xFFFFFF, 8, 10, 2); // DCFFCB green 
             fillLight.position.set(50, 80, -50);
 
             avatar.add(keyLight, rimLight, fillLight);
@@ -142,24 +150,66 @@ function loadAvatar() {
     );
 }
 
+gltfLoader.load('/public/arrow_draco.glb', (gltf) => {
+    refreshArrow = gltf.scene;
+    refreshArrow.scale.set(0.1, 0.1, 0.1);
+    refreshArrow.position.set(0, 1.5, 0);
+    refreshArrow.userData.isRefreshArrow = true;
+
+    refreshArrow.traverse((child) => {
+        if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+            child.raycast = THREE.Mesh.prototype.raycast; 
+refreshArrow.traverse(o => {
+  console.log("-", o.name, o.type, o.isMesh ? "(Mesh)" : "");
+});
+        }
+    });
+
+    scene.add(refreshArrow); // ✅ Add arrow before creating hitbox
+
+});
+
+
 //CLICK EVENT
 window.addEventListener('click', (event) => {
     raycaster.setFromCamera(mouse, camera);
-    const intersects = raycaster.intersectObjects(garments.map(g => g.object), true);
+
+  //check for arrow 
+  const allClickables = [
+    ...garments.map(g => g.object),
+    ...(refreshArrow ? [refreshArrow] : [])];
+
+    const intersects = raycaster.intersectObjects(allClickables, true);
+    console.log("👉 Intersected objects on hover:", intersects.map(obj => obj.object.name));
+
+
+   // const intersects = raycaster.intersectObjects(garments.map(g => g.object), true);
 
     if (intersects.length > 0) {
-        let clickedGarment = intersects[0].object;
+        const clickedObject = intersects[0].object;
+
+        // If user clicked the refresh arrow
+        let target = clickedObject;
+        while (target && target !== scene) {
+            if (target.userData.isRefreshArrow) {
+                console.log("🔁 Refresh arrow clicked! Reloading page...");
+                location.reload(); // Full page reload
+                return;
+            }
+            target = target.parent;
+        }
+        
+        let clickedGarment = clickedObject;
+                
+        
 
         // Traverse up to find the main garment group
         while (clickedGarment.parent && clickedGarment.parent !== scene) {
             clickedGarment = clickedGarment.parent;
         }
         selectedGarment = clickedGarment;
-
-        console.log("🧐 Selected Garment Object:", selectedGarment);
-        console.log("🧐 Selected Garment Name:", selectedGarment?.name);
-        console.log("🧐 Parent Name:", selectedGarment?.parent?.name);
-        console.log("🧐 Full Object Structure:", selectedGarment);
 
         // Extract a valid garment name
         let garmentName = selectedGarment.name?.trim().toLowerCase() || "";
@@ -229,8 +279,11 @@ window.addEventListener('click', (event) => {
 
 // REPLACE AVATAR ON CLICK WITH SELECTED GARMENT 
 function replaceAvatar(garment, posedAvatarUrl) {
-    console.log("Starting avatar replacement...");
-    console.log("URL:", posedAvatarUrl);
+    if (isLoadingPosedAvatar) {
+        console.warn("⛔ Avatar is already loading. Skipping duplicate.");
+        return;
+    }
+    isLoadingPosedAvatar = true;
     
     if (window.avatar) {
         console.log("Removing old avatar");
@@ -247,27 +300,24 @@ function replaceAvatar(garment, posedAvatarUrl) {
             newAvatar.position.set(0, -0.6, 0);
             
             // Add the same lights as the original avatar
-            const keyLight = new THREE.PointLight(0xFFFFFF, 13, 10, 2); // white color, intensity, distance, decay
+            const keyLight = new THREE.PointLight(0xFFFFFF, 7, 10, 2); // white color, intensity, distance, decay
             keyLight.position.set(-100, 150, 100);
             keyLight.castShadow = true;
 
-            const rimLight = new THREE.PointLight(0xFFFFFF, 13, 50, 1); // purple FFA0B0
+            const rimLight = new THREE.PointLight(0xFFFFFF, 4, 50, 1); // purple FFA0B0
             rimLight.position.set(-100, 130, -100);
 
-            const fillLight = new THREE.PointLight(0xFFFFFF, 13, 50, 1); // green DCFFCB
+            const fillLight = new THREE.PointLight(0xFFFFFF, 6, 50, 1); // green DCFFCB
             fillLight.position.set(100, 150, -100);
 
-            const highLight = new THREE.PointLight(0xFFFFFF, 15, 50, 1);
-            highLight.position.set(100, 130, 100); 
 
-            newAvatar.add(keyLight, rimLight, fillLight, highLight);
+            newAvatar.add(keyLight, rimLight, fillLight);
             
             // Optional: Add debug helpers if needed
             
             const keyLightHelper = new THREE.PointLightHelper(keyLight, 10, 0xff0000);
             const rimLightHelper = new THREE.PointLightHelper(rimLight, 10, 0x00ff00);
             const fillLightHelper = new THREE.PointLightHelper(fillLight, 10, 0x0000ff);
-            const highLightHelper = new THREE.PointLightHelper(fillLight, 10, 0x0f0f0f);
             scene.add(keyLightHelper, rimLightHelper, fillLightHelper);
             
             console.log("Avatar material check:");
@@ -279,23 +329,48 @@ function replaceAvatar(garment, posedAvatarUrl) {
             });
             
             window.avatar = newAvatar;
+            isLoadingPosedAvatar = false;
+
             scene.add(newAvatar);
         },
         (progress) => console.log("Loading progress:", progress),
-        (error) => console.error("Error loading avatar:", error)
-    );
+        (error) => {
+            console.error("Error loading avatar:", error);        }
+            );
 }
 
+function cleanupSceneBeforePosing() {
+    // 1. Remove the current avatar (initial or previous posed)
+    if (currentAvatar) {
+      scene.remove(currentAvatar);
+      currentAvatar.traverse(child => {
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) {
+          if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+          else child.material.dispose();
+        }
+      });
+      currentAvatar = null;
+    }
+  
+    // 2. Hide all orbiting garments
+    if (garmentsVisible) {
+      garments.forEach(({ object }) => {
+        object.visible = false;
+      });
+      garmentsVisible = false;
+    }
+  }
+  
 // Mapping between garments and their associated posed avatars
 const garmentToPosedAvatarMap = {
-    'jumpsuit': '/public/Jumpsuit_Posed.glb',
-    'charam': '/public/CharaM_Posed.glb',
-    'domi': '/public/Domi_Posed.glb',
-    'puffer': '/public/Puffer_Posed.glb',
-    'nb1': '/public/NB1_Posed.glb'
+    'jumpsuit': '/public/Avatar_Jumpsuit_draco.glb',
+    'charam': '/public/Avatar_Chara_draco.glb',
+    'domi': '/public/Avatar_Domi_draco.glb',
+    'puffer': '/public/Avatar_Puffer_draco.glb',
+    'nb1': '/public/Avatar_NB_draco.glb'
 };
 
-// ALL THE FUNCTION TO LOAD THE AVATAR
 loadAvatar();
 
 
@@ -311,10 +386,10 @@ const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
 
 const outlinePass = new OutlinePass(new THREE.Vector2(window.innerWidth, window.innerHeight), scene, camera);
-outlinePass.edgeStrength = 0.5;      // Increased from 0.2
-outlinePass.edgeGlow = 10;        // Reduced from 1
-outlinePass.edgeThickness = 1;     // Reduced from 10
-outlinePass.pulsePeriod = 0;       // Disable pulse effect
+outlinePass.edgeStrength = 1;      // intensity of glow
+outlinePass.edgeGlow = 10;        // 
+outlinePass.edgeThickness = 1;     
+outlinePass.pulsePeriod = 5;       //pulse effect
 outlinePass.visibleEdgeColor.set(0xFFFFFF); //fddeff
 outlinePass.hiddenEdgeColor.set(0x222222);
 composer.addPass(outlinePass);
@@ -387,9 +462,9 @@ const bloomPass = new UnrealBloomPass(
     0.3     // threshold
 );
 
-bloomPass.threshold = 0.9;     // Only bloom pixels brighter than this value (1.0 = white)
-bloomPass.strength = 0.3;      // Keep bloom strength moderate
-bloomPass.radius = 0.4;        // Keep the glow radius tight
+bloomPass.threshold = 1;     // Only bloom pixels brighter than this value (1.0 = white)
+bloomPass.strength = 200;    // stronger
+bloomPass.radius = 400;      // softer
 
 composer.addPass(bloomPass);
 
@@ -513,47 +588,103 @@ function handleMovement() {
 }
 handleMovement();
 
-// Add this helper function near the top
 function getObjectUnderMouse() {
     raycaster.setFromCamera(mouse, camera);
-    const intersects = raycaster.intersectObjects(garments.flatMap(g => g.object.children), true);
-    
+
+    const garmentMeshes = garments.flatMap(g => {
+        const meshes = [];
+        g.object.traverse(child => {
+            if (child.isMesh) meshes.push(child);
+        });
+        return meshes;
+    });
+
+    const arrowMeshes = [];
+    if (refreshArrow) {
+        refreshArrow.traverse(child => {
+            if (child.isMesh) arrowMeshes.push(child);
+        });
+    }
+
+    const hoverables = [...garmentMeshes, ...arrowMeshes];
+
+    const intersects = raycaster.intersectObjects(hoverables, true);
     if (intersects.length === 0) {
         return null;
     }
-    
-    // Find the parent garment
-    let selectedObject = intersects[0].object;
-    while (selectedObject.parent && selectedObject.parent !== scene) {
-        selectedObject = selectedObject.parent;
+
+    let hovered = intersects[0].object;    
+
+    // Traverse upward to top-level object (garment or arrow)
+    while (hovered.parent && hovered.parent !== scene) {
+        hovered = hovered.parent;
     }
-    
-    return selectedObject;
+
+    return hovered;
 }
+
+
+
+
+
+
 window.addEventListener('mousemove', (event) => {
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-    
+
     if (!isMouseDown) {
-        const hoveredGarment = getObjectUnderMouse();
-        outlinePass.selectedObjects = hoveredGarment ? [hoveredGarment] : [];
-        outlinePass.edgeStrength = hoveredGarment ? SETTINGS.GLOW.DEFAULT : 0;
-        
-        // Update hover states
+        const allHoverables = [
+            ...garments.map(g => g.object),
+            ...(refreshArrow ? [refreshArrow] : [])
+        ];
+
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(allHoverables, true);
+          let hoveredObject = intersects.length > 0 ? intersects[0].object : null; // use `let` here
+
+        // Traverse up to get the main parent group
+        let topLevelHovered = hoveredObject;
+        while (topLevelHovered?.parent && topLevelHovered.parent !== scene) {
+            topLevelHovered = topLevelHovered.parent;
+        }
+
+        // Apply outline glow
+        outlinePass.selectedObjects = topLevelHovered ? [topLevelHovered] : [];
+        outlinePass.edgeStrength = topLevelHovered ? SETTINGS.GLOW.DEFAULT : 0;
+
+        // Update hover state for garments only
         garments.forEach(garment => {
-            garment.object.userData.isHovered = (garment.object === hoveredGarment);
+            garment.object.userData.isHovered = (garment.object === topLevelHovered);
         });
     }
 });
+
 
 // CLICK-AND-HOLD EFFECT: Gradually Increase Glow
 window.addEventListener('mousedown', (event) => {
     if (avatarReplaced) return; // Prevent further interactions if the avatar has already been replaced
 
     raycaster.setFromCamera(mouse, camera);
-    const intersects = raycaster.intersectObjects(garments.map(g => g.object), true);
+    const allClickable = [
+        ...garments.map(g => g.object),
+        ...(refreshArrow ? [refreshArrow.children] : [])
+    ];
+
+    const intersects = raycaster.intersectObjects(allClickable, true);
+    refreshArrow.userData.isRefreshArrow = true;
+
 
     if (intersects.length > 0) {
+
+        const clickedObject = intersects[0].object;
+
+// Check if user clicked the refresh arrow
+if (clickedObject.userData.isRefreshArrow) {
+    console.log(refreshArrow);
+    console.log("🔁 Refreshing scene...");
+    location.reload();
+    return;
+}
         let clickedGarment = intersects[0].object;
         while (clickedGarment.parent && clickedGarment.parent !== scene) {
             clickedGarment = clickedGarment.parent;
@@ -757,8 +888,9 @@ function animate() {
         const holdProgress = Math.min(1.0, holdDuration / SETTINGS.GLOW.HOLD_DURATION); // Max out at 1 second
         
         // Calculate glow intensity based on how long the mouse has been held
-        const currentGlow = SETTINGS.GLOW.DEFAULT + (SETTINGS.GLOW.MAX - SETTINGS.GLOW.DEFAULT) * holdProgress;
-        outlinePass.edgeStrength = currentGlow;
+        const maxVisualStrength = 1.25;
+        const currentGlow = SETTINGS.GLOW.DEFAULT + (maxVisualStrength - SETTINGS.GLOW.DEFAULT) * holdProgress;
+                outlinePass.edgeStrength = currentGlow;
     }
   
     garments.forEach(({ object }) => {
@@ -812,6 +944,10 @@ function animate() {
       window.avatar.rotation.y += 0.005;
     }
   
+    if (refreshArrow) {
+        refreshArrow.rotation.y += 0.01; // adjust speed as needed
+    }
+    
     controls.update(); 
 
 
@@ -822,16 +958,13 @@ camera.updateMatrixWorld();
     
     // SELECTIVE BLOOM RENDERING PROCESS
     
-    // 1. First render the bloom pass with only sparkles visible
+    // 1. First render the bloom pass 
     scene.traverse(darkenNonBloomed);
-
-    // Explicitly handle the scene background
 
     darkenNonBloomed(scene);
     bloomEffect.bloomComposer.render();
     scene.traverse(restoreMaterial);
 
-    // Explicitly restore the scene background
     restoreMaterial(scene);
     
     // 2. Use the bloom result as input to the final composite render
@@ -845,7 +978,8 @@ camera.updateMatrixWorld();
 
   }
   
-
+  raycaster.setFromCamera(mouse, camera);
+  const testIntersects = raycaster.intersectObjects(scene.children, true);
   
   animate();
 
