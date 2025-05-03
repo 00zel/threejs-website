@@ -30,7 +30,7 @@ const SETTINGS = {
     DEFAULT: 0.5,
     MAX: 3.0,
     HOLD_DURATION: 1000, // ms until max glow
-    ACTIVATION_HOLD: 500 // ms to hold before selection activates
+    ACTIVATION_HOLD: 20 // ms to hold before selection activates
   },
   DEBUG: false // Set to false in production
 };
@@ -65,6 +65,7 @@ let refreshArrow;
 
 let isHoveringRefreshArrow = false;
 let refreshRotationSpeed = 0.015; // Default rotation speed for the refresh arrow
+const ANIMATION_DURATION = 2; // or try 1.5 for more drama
 
 
 
@@ -264,6 +265,8 @@ function replaceAvatar(garment, posedAvatarUrl) {
         return;
     }
     isLoadingPosedAvatar = true;
+    if (avatarReplaced) return;
+
     
     if (window.avatar) {
         scene.remove(window.avatar);
@@ -596,14 +599,15 @@ function getObjectUnderMouse() {
 window.addEventListener('mousemove', (event) => {
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        
+    raycaster.setFromCamera(mouse, camera);
 
-    if (!isMouseDown) {
+    
         const allHoverables = [
             ...garments.map(g => g.object),
             ...(refreshArrow ? [refreshArrow] : [])
         ];
 
-        raycaster.setFromCamera(mouse, camera);
         const intersects = raycaster.intersectObjects(allHoverables, true);
         let hoveredObject = intersects.length > 0 ? intersects[0].object : null;
 
@@ -615,6 +619,9 @@ window.addEventListener('mousemove', (event) => {
 
         // Apply outline glow
         outlinePass.selectedObjects = topLevelHovered ? [topLevelHovered] : [];
+        if (!topLevelHovered) {
+            outlinePass.selectedObjects = [];
+        }
         outlinePass.edgeStrength = topLevelHovered ? SETTINGS.GLOW.DEFAULT : 0;
 
         // Update hover state for garments only
@@ -647,12 +654,15 @@ window.addEventListener('mousemove', (event) => {
             });
         }
     }
-});
+);
 
 
 
 // CLICK-AND-HOLD EFFECT: Gradually Increase Glow
 window.addEventListener('mousedown', (event) => {
+    isMouseDown = true;
+    mouseDownStartTime = Date.now();
+  
     if (avatarReplaced) return; // Prevent further interactions if the avatar has already been replaced
 
     raycaster.setFromCamera(mouse, camera);
@@ -700,37 +710,107 @@ function fadeOutGlowEffect(object) {
 }
 
 window.addEventListener('mouseup', (event) => {
-    if (isMouseDown && selectedGarment) {
-        const holdDuration = Date.now() - mouseDownStartTime;
-        
-        if (holdDuration > SETTINGS.GLOW.ACTIVATION_HOLD) { // If held for more than 500ms
-           
-            // Hide all other garments except the selected one
-            garments.forEach(({ object }) => {
-                object.visible = (object === selectedGarment);
-            });
-
-            // Get the garment name for avatar replacement
-            let garmentName = selectedGarment.name?.trim().toLowerCase() || "";
-            if (!garmentName) {
-                garmentName = selectedGarment.userData.sourceFile?.split('/').pop().split('.')[0].toLowerCase() || "";
-            }
-
-            // Find and load the corresponding posed avatar
-            const posedAvatarUrl = garmentToPosedAvatarMap[garmentName];
-            if (posedAvatarUrl) {
-                replaceAvatar(selectedGarment, posedAvatarUrl);
-                avatarReplaced = true;
-            }
-        } else {
-            // If just clicking quickly, reset the glow
-            fadeOutGlowEffect(selectedGarment, 500);
-        }
-    }
-    
-    // Reset mouse state
+    if (!isMouseDown || !selectedGarment) return;
     isMouseDown = false;
+
+    console.log("🖱️ MOUSEUP fired");
+console.log("👉 isMouseDown:", isMouseDown);
+console.log("👉 selectedGarment:", selectedGarment?.name);
+
+    const holdDuration = Date.now() - mouseDownStartTime;
+
+    console.log("🕒 Hold duration:", holdDuration, "ms (threshold:", SETTINGS.GLOW.ACTIVATION_HOLD, ")");
+
+
+    if (holdDuration > SETTINGS.GLOW.ACTIVATION_HOLD) {
+        console.log("🧠 Passed hold threshold");
+
+        // Prevent further interactions
+        if (avatarReplaced) return;
+
+        // Hide all other garments
+        garments.forEach(({ object }) => {
+            object.visible = (object === selectedGarment);
+            object.userData.isClickable = (object === selectedGarment);
+        });
+
+        // Get garment mesh to move/scale
+        let garmentMesh = null;
+        selectedGarment.traverse(child => {
+            if (child.isMesh && !garmentMesh) {
+                garmentMesh = child;
+            }
+        });
+
+        if (!garmentMesh) {
+            console.error("❌ No mesh found in selectedGarment");
+            return;
+        }
+
+        console.log("✅ Found garment mesh:", garmentMesh.name, garmentMesh);
+
+
+        // Convert mouse to world position
+        raycaster.setFromCamera(mouse, camera);
+        const box = new THREE.Box3().setFromObject(garmentMesh);
+        const center = new THREE.Vector3();
+        box.getCenter(center);
+        
+        // Build a plane at the garment's Z depth
+        const zOffset = -0.5; // Negative values move it closer to camera, positive move it deeper
+        const planeatGarment = new THREE.Plane(new THREE.Vector3(0, 0, 1), -center.z);        
+        
+        const intersectPoint = new THREE.Vector3();
+        const didIntersect = raycaster.ray.intersectPlane(planeatGarment, intersectPoint);
+
+        if (!didIntersect) {
+            console.warn("⚠️ Failed to convert mouse position to 3D point");
+            return;
+        }
+
+        // Lock orbiting
+        selectedGarment.userData.isLocked = true;
+
+        // Animate move
+        gsap.to(selectedGarment.position, {
+            x: intersectPoint.x,
+            y: intersectPoint.y,
+            z: intersectPoint.z,
+            duration: ANIMATION_DURATION,
+            ease: "power2.out"
+        });
+
+        // Animate scale down and THEN replace avatar
+         gsap.to(selectedGarment.scale, {
+            x: 0.01,
+            y: 0.01,
+            z: 0.01,
+            duration: ANIMATION_DURATION,
+            ease: "power2.out",
+            onComplete: () => {
+                avatarReplaced = true;
+                selectedGarment.visible = false;
+               // createBurstEffectAt(selectedGarment.position);
+                document.body.style.cursor = "url('./images/cursor-dress.png') 16 16, auto";
+
+                // Look up avatar URL
+                let garmentName = selectedGarment.name?.trim().toLowerCase() || "";
+                if (!garmentName) {
+                    garmentName = selectedGarment.userData.sourceFile?.split('/').pop().split('.')[0].toLowerCase() || "";
+                }
+
+                const posedAvatarUrl = garmentToPosedAvatarMap[garmentName];
+                if (posedAvatarUrl) {
+                    replaceAvatar(selectedGarment, posedAvatarUrl);
+                    console.log("🧵 Avatar replaced:", posedAvatarUrl);
+                } else {
+                    console.error(`❌ No posed avatar found for: "${garmentName}"`);
+                }
+            }
+        });
+    } 
 });
+
 
 // Add key controls for camera positioning
 window.addEventListener('keydown', (event) => {
@@ -894,6 +974,9 @@ function animate() {
     }
   
     garments.forEach(({ object }) => {
+
+        if (object.userData.isLocked) return;
+
       // Ensure each garment has a unique rotation offset
       if (object.userData.rotationOffset === undefined) {
         object.userData.rotationOffset = Math.random() * Math.PI * 2;
