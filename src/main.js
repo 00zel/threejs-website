@@ -63,6 +63,9 @@ let isLoadingPosedAvatar = false;
 let garmentsVisible = true;
 let refreshArrow;
 
+let isHoveringRefreshArrow = false;
+let refreshRotationSpeed = 0.015; // Default rotation speed for the refresh arrow
+
 
 
 //STATS GUI 
@@ -161,13 +164,10 @@ gltfLoader.load('/public/arrow_draco.glb', (gltf) => {
             child.castShadow = true;
             child.receiveShadow = true;
             child.raycast = THREE.Mesh.prototype.raycast; 
-refreshArrow.traverse(o => {
-  console.log("-", o.name, o.type, o.isMesh ? "(Mesh)" : "");
-});
         }
     });
 
-    scene.add(refreshArrow); // ✅ Add arrow before creating hitbox
+    scene.add(refreshArrow); 
 
 });
 
@@ -176,14 +176,11 @@ refreshArrow.traverse(o => {
 window.addEventListener('click', (event) => {
     raycaster.setFromCamera(mouse, camera);
 
-  //check for arrow 
   const allClickables = [
     ...garments.map(g => g.object),
     ...(refreshArrow ? [refreshArrow] : [])];
 
     const intersects = raycaster.intersectObjects(allClickables, true);
-    console.log("👉 Intersected objects on hover:", intersects.map(obj => obj.object.name));
-
 
    // const intersects = raycaster.intersectObjects(garments.map(g => g.object), true);
 
@@ -194,7 +191,6 @@ window.addEventListener('click', (event) => {
         let target = clickedObject;
         while (target && target !== scene) {
             if (target.userData.isRefreshArrow) {
-                console.log("🔁 Refresh arrow clicked! Reloading page...");
                 location.reload(); // Full page reload
                 return;
             }
@@ -216,27 +212,21 @@ window.addEventListener('click', (event) => {
 
         // 🔍 If the name is empty, check the parent
         if (!garmentName && selectedGarment.parent) {
-            console.warn("⚠️ No valid garment name found. Checking parent...");
             garmentName = selectedGarment.parent.name?.trim().toLowerCase() || "";
         }
 
         // 🔍 If still empty, check children
         if (!garmentName && selectedGarment.children.length > 0) {
-            console.warn("⚠️ No name found. Checking first child...");
             garmentName = selectedGarment.children[0].name?.trim().toLowerCase() || "";
         }
 
         // 🔍 If still empty, fallback to file path
         if (!garmentName && selectedGarment.userData.sourceFile) {
-            console.warn("⚠️ Using file path as name...");
             garmentName = selectedGarment.userData.sourceFile.split('/').pop().split('.')[0].toLowerCase();
         }
 
-        console.log(`Extracted Garment Name: "${garmentName}"`);
-
-        // 🛑 **Prevent selecting an empty name**
+        //**Prevent selecting an empty name**
         if (!garmentName) {
-            console.error("❌ Cannot determine garment name. Skipping posed avatar replacement.");
             return;
         }
 
@@ -253,47 +243,35 @@ window.addEventListener('click', (event) => {
         let posedAvatarUrl = garmentToPosedAvatarMap[garmentName];
 
         if (!posedAvatarUrl) {
-            console.warn(`❌ No exact match found for "${garmentName}". Checking fuzzy matches...`);
 
             Object.keys(garmentToPosedAvatarMap).forEach(key => {
                 if (garmentName.includes(key) || key.includes(garmentName)) {
-                    posedAvatarUrl = garmentToPosedAvatarMap[key];
-                    console.log(`Fuzzy match found: "${garmentName}" -> "${key}"`);
-                }
+                    posedAvatarUrl = garmentToPosedAvatarMap[key];                }
             });
         }
 
         // Only replace the avatar if a valid match is found
         if (posedAvatarUrl) {
-            console.log(`🧵 Replacing with posed avatar: ${posedAvatarUrl}`);
             replaceAvatar(selectedGarment, posedAvatarUrl);
             avatarReplaced = true;
-        } else {
-            console.error(`❌ No posed avatar found for garment: "${garmentName}"`);
-            console.log(`🔎 Available Keys:`, Object.keys(garmentToPosedAvatarMap));
-        }
-    } else {
-        console.warn("❌ No garment detected under the click.");
-    }
+        } 
+    } 
 });
 
 // REPLACE AVATAR ON CLICK WITH SELECTED GARMENT 
 function replaceAvatar(garment, posedAvatarUrl) {
     if (isLoadingPosedAvatar) {
-        console.warn("⛔ Avatar is already loading. Skipping duplicate.");
         return;
     }
     isLoadingPosedAvatar = true;
     
     if (window.avatar) {
-        console.log("Removing old avatar");
         scene.remove(window.avatar);
         window.avatar = null;
     }
 
     gltfLoader.load(posedAvatarUrl,
         (gltf) => {
-            console.log("Successfully loaded new avatar");
             const newAvatar = gltf.scene;
             processPBRMaterials(newAvatar); // Add this line
             newAvatar.scale.set(0.008, 0.008, 0.008);
@@ -320,22 +298,11 @@ function replaceAvatar(garment, posedAvatarUrl) {
             const fillLightHelper = new THREE.PointLightHelper(fillLight, 10, 0x0000ff);
             scene.add(keyLightHelper, rimLightHelper, fillLightHelper);
             
-            console.log("Avatar material check:");
-            gltf.scene.traverse(node => {
-                if (node.isMesh) {
-                    console.log(`- ${node.name}: ${node.material.type}`, 
-                        node.material.map ? "✓ has texture" : "⚠️ no texture");
-                }
-            });
-            
             window.avatar = newAvatar;
             isLoadingPosedAvatar = false;
 
             scene.add(newAvatar);
         },
-        (progress) => console.log("Loading progress:", progress),
-        (error) => {
-            console.error("Error loading avatar:", error);        }
             );
 }
 
@@ -448,8 +415,6 @@ function applyMaterialToAvatar() {
 
             child.castShadow = false;
             child.receiveShadow = true;
-       // Optional: Log materials for debugging
-       console.log(`📦 Mesh: ${child.name}, Material:`, child.material);
         }
     });
 }
@@ -640,7 +605,7 @@ window.addEventListener('mousemove', (event) => {
 
         raycaster.setFromCamera(mouse, camera);
         const intersects = raycaster.intersectObjects(allHoverables, true);
-          let hoveredObject = intersects.length > 0 ? intersects[0].object : null; // use `let` here
+        let hoveredObject = intersects.length > 0 ? intersects[0].object : null;
 
         // Traverse up to get the main parent group
         let topLevelHovered = hoveredObject;
@@ -656,8 +621,34 @@ window.addEventListener('mousemove', (event) => {
         garments.forEach(garment => {
             garment.object.userData.isHovered = (garment.object === topLevelHovered);
         });
+
+        // === 🔁 Refresh Arrow Hover Logic ===
+        if (refreshArrow && (topLevelHovered === refreshArrow || refreshArrow.children.includes(topLevelHovered))) {
+            if (!isHoveringRefreshArrow) {
+                isHoveringRefreshArrow = true;
+                gsap.to({ speed: refreshRotationSpeed }, {
+                    speed: 0,
+                    duration: 0.4,
+                    ease: "power2.out",
+                    onUpdate: function () {
+                        refreshRotationSpeed = this.targets()[0].speed;
+                    }
+                });
+            }
+        } else if (isHoveringRefreshArrow) {
+            isHoveringRefreshArrow = false;
+            gsap.to({ speed: refreshRotationSpeed }, {
+                speed: 0.015,
+                duration: 0.4,
+                ease: "power2.out",
+                onUpdate: function () {
+                    refreshRotationSpeed = this.targets()[0].speed;
+                }
+            });
+        }
     }
 });
+
 
 
 // CLICK-AND-HOLD EFFECT: Gradually Increase Glow
@@ -667,7 +658,7 @@ window.addEventListener('mousedown', (event) => {
     raycaster.setFromCamera(mouse, camera);
     const allClickable = [
         ...garments.map(g => g.object),
-        ...(refreshArrow ? [refreshArrow.children] : [])
+        ...(refreshArrow ? refreshArrow.children : [])
     ];
 
     const intersects = raycaster.intersectObjects(allClickable, true);
@@ -680,8 +671,6 @@ window.addEventListener('mousedown', (event) => {
 
 // Check if user clicked the refresh arrow
 if (clickedObject.userData.isRefreshArrow) {
-    console.log(refreshArrow);
-    console.log("🔁 Refreshing scene...");
     location.reload();
     return;
 }
@@ -698,6 +687,17 @@ if (clickedObject.userData.isRefreshArrow) {
         outlinePass.edgeStrength = SETTINGS.GLOW.DEFAULT; 
     }
 });
+
+function fadeOutGlowEffect(object) {
+    gsap.to(outlinePass, {
+        edgeStrength: 0,
+        duration: 0.5,
+        ease: "power2.out",
+        onUpdate: () => {
+            outlinePass.edgeStrength = outlinePass.edgeStrength;
+        }
+    });
+}
 
 window.addEventListener('mouseup', (event) => {
     if (isMouseDown && selectedGarment) {
@@ -939,13 +939,14 @@ function animate() {
       }
     });
   
-    // Rotate avatar (if present)
+    // Rotate avatar 
     if (window.avatar) {
       window.avatar.rotation.y += 0.005;
     }
   
+    // Rotate arrow
     if (refreshArrow) {
-        refreshArrow.rotation.y += 0.01; // adjust speed as needed
+        refreshArrow.rotation.y += refreshRotationSpeed;
     }
     
     controls.update(); 
