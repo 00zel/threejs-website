@@ -57,17 +57,25 @@ let isMouseDown = false;
 let mouseDownStartTime = 0;
 const lightHelpers = []; 
 
+
+
+let isHoveringRefreshArrow = false;
+let refreshRotationSpeed = 0.015; // Default rotation speed for the refresh arrow
+const ANIMATION_DURATION = 1.5; // or try 1.5 for more drama
+
+const garmentToCursorMap = {
+    "jumpsuit": "./test.png",
+    "charam": "./test.png",
+    "puffer": "./puffer_cursor.png",
+    "nb1": "./test.png",
+    "domi": "./test.png",
+};
+
 let currentAvatar = window.avatar || null;
 let currentPosedAvatar = null;
 let isLoadingPosedAvatar = false;
 let garmentsVisible = true;
 let refreshArrow;
-
-let isHoveringRefreshArrow = false;
-let refreshRotationSpeed = 0.015; // Default rotation speed for the refresh arrow
-const ANIMATION_DURATION = 2; // or try 1.5 for more drama
-
-
 
 //STATS GUI 
 const stats = new Stats();
@@ -713,17 +721,9 @@ window.addEventListener('mouseup', (event) => {
     if (!isMouseDown || !selectedGarment) return;
     isMouseDown = false;
 
-    console.log("🖱️ MOUSEUP fired");
-console.log("👉 isMouseDown:", isMouseDown);
-console.log("👉 selectedGarment:", selectedGarment?.name);
-
     const holdDuration = Date.now() - mouseDownStartTime;
 
-    console.log("🕒 Hold duration:", holdDuration, "ms (threshold:", SETTINGS.GLOW.ACTIVATION_HOLD, ")");
-
-
     if (holdDuration > SETTINGS.GLOW.ACTIVATION_HOLD) {
-        console.log("🧠 Passed hold threshold");
 
         // Prevent further interactions
         if (avatarReplaced) return;
@@ -742,13 +742,6 @@ console.log("👉 selectedGarment:", selectedGarment?.name);
             }
         });
 
-        if (!garmentMesh) {
-            console.error("❌ No mesh found in selectedGarment");
-            return;
-        }
-
-        console.log("✅ Found garment mesh:", garmentMesh.name, garmentMesh);
-
 
         // Convert mouse to world position
         raycaster.setFromCamera(mouse, camera);
@@ -763,10 +756,6 @@ console.log("👉 selectedGarment:", selectedGarment?.name);
         const intersectPoint = new THREE.Vector3();
         const didIntersect = raycaster.ray.intersectPlane(planeatGarment, intersectPoint);
 
-        if (!didIntersect) {
-            console.warn("⚠️ Failed to convert mouse position to 3D point");
-            return;
-        }
 
         // Lock orbiting
         selectedGarment.userData.isLocked = true;
@@ -781,7 +770,11 @@ console.log("👉 selectedGarment:", selectedGarment?.name);
         });
 
         // Animate scale down and THEN replace avatar
-         gsap.to(selectedGarment.scale, {
+        let garmentName = selectedGarment.name?.trim().toLowerCase() || "";
+                if (!garmentName) {
+                    garmentName = selectedGarment.userData.sourceFile?.split('/').pop().split('.')[0].toLowerCase() || "";
+                }
+                   gsap.to(selectedGarment.scale, {
             x: 0.01,
             y: 0.01,
             z: 0.01,
@@ -791,21 +784,20 @@ console.log("👉 selectedGarment:", selectedGarment?.name);
                 avatarReplaced = true;
                 selectedGarment.visible = false;
                // createBurstEffectAt(selectedGarment.position);
-                document.body.style.cursor = "url('./images/cursor-dress.png') 16 16, auto";
-
+               const cursorUrl = garmentToCursorMap[garmentName];
+               if (cursorUrl) {
+                   document.body.style.cursor = `url('${cursorUrl}') 16 16, auto`;
+               } else {
+                   console.warn("⚠️ No cursor image found for:", garmentName);
+               }
+               
                 // Look up avatar URL
-                let garmentName = selectedGarment.name?.trim().toLowerCase() || "";
-                if (!garmentName) {
-                    garmentName = selectedGarment.userData.sourceFile?.split('/').pop().split('.')[0].toLowerCase() || "";
-                }
+              
 
                 const posedAvatarUrl = garmentToPosedAvatarMap[garmentName];
                 if (posedAvatarUrl) {
                     replaceAvatar(selectedGarment, posedAvatarUrl);
-                    console.log("🧵 Avatar replaced:", posedAvatarUrl);
-                } else {
-                    console.error(`❌ No posed avatar found for: "${garmentName}"`);
-                }
+                } 
             }
         });
     } 
