@@ -83,7 +83,6 @@ let isLoadingPosedAvatar = false;
 let garmentsVisible = true;
 let refreshArrow;
 
-console.log("👋 Hello, this is working!");
 
 
 
@@ -1161,7 +1160,7 @@ function dissolveMesh(mesh, duration = 2000) {
       const nx = normalAttr.getX(i);
       const ny = normalAttr.getY(i);
       const nz = normalAttr.getZ(i);
-      const scalar = Math.random() * 0.00000005;
+      const scalar = Math.random() * 0.0005;
       velocityArray[i * 3 + 0] = nx * scalar;
       velocityArray[i * 3 + 1] = ny * scalar;
       velocityArray[i * 3 + 2] = nz * scalar;
@@ -1172,7 +1171,7 @@ function dissolveMesh(mesh, duration = 2000) {
     mesh.parent?.name?.toLowerCase() || 
     mesh.name?.toLowerCase() || 
     mesh.userData.sourceFile?.split('/').pop().split('.')[0].toLowerCase() || '';
-
+    
     
     // 🎨 STEP 2: Pick color based on garment name
     let dissolveColor = new THREE.Color(0xb6e8f4); // default icy blue
@@ -1193,7 +1192,7 @@ function dissolveMesh(mesh, duration = 2000) {
         varying float vAlpha;
         void main() {
           vAlpha = aAlpha;
-          gl_PointSize = 0.01;
+          gl_PointSize = 0.1;
           gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }
       `,
