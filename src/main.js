@@ -73,39 +73,20 @@ const garmentToCursorMap = {
     "domi": "./test.png",
 };
 
+const posedAvatars = {};
+const activeDissolves = [];
+
+
 let currentAvatar = window.avatar || null;
 let currentPosedAvatar = null;
 let isLoadingPosedAvatar = false;
 let garmentsVisible = true;
 let refreshArrow;
-const activeDissolves = [];
-
-const posedAvatars = {};
-const posedAvatarUrls = {
-  puffer: '/public/Avatar_Puffer_draco.glb',
-  jumpsuit: '/public/Avatar_Jumpsuit_draco.glb',
-  nb1: '/public/Avatar_NB_draco.glb',
-  charam: '/public/Avatar_Chara_draco.glb',
-  domi: '/public/Avatar_Domi_draco.glb'};
 
 
-function preloadAllPosedAvatars() {
-  Object.entries(posedAvatarUrls).forEach(([key, url]) => {
-    gltfLoader.load(url, (gltf) => {
-      const avatar = gltf.scene;
-      processPBRMaterials(avatar);
-      avatar.visible = false;
-      avatar.userData.noBloom = true;
-      avatar.scale.set(0.008, 0.008, 0.008);
-      avatar.position.set(0, -0.6, 0);
-      posedAvatars[key] = avatar;
-      scene.add(avatar);
-    });
-  });
-}
 
 
-  
+
 //STATS GUI 
 const stats = new Stats();
 // Optionally, set which panel to show:
@@ -152,7 +133,14 @@ controls.maxDistance = 10;
 controls.maxPolarAngle = Math.PI;    // Allow full vertical rotation
 controls.target.set(0, 0.5, 0);      // Set target to face height instead of center
 
-// FUNCTION TO LOAD THE AVATAR
+function preloadAllPosedAvatars() {
+    Object.entries(garmentToPosedAvatarMap).forEach(([key, url]) => {
+      gltfLoader.load(url, (gltf) => {
+        posedAvatars[key] = gltf.scene;
+      });
+    });
+  }
+  
 function loadAvatar() {
     gltfLoader.load(  
         '/public/Avatar_Base2.glb',
@@ -196,8 +184,6 @@ function loadAvatar() {
         },
     );
 }
-
-preloadAllPosedAvatars();
 
 
 gltfLoader.load('/public/arrow_draco.glb', (gltf) => {
@@ -306,45 +292,49 @@ window.addEventListener('click', (event) => {
 });
 
 // REPLACE AVATAR ON CLICK WITH SELECTED GARMENT 
-function replaceAvatar(selectedGarment, posedKey) {
-    Object.values(posedAvatars).forEach(a => a.visible = false);
-  
-    const avatar = posedAvatars[posedKey];
-    if (avatar) {
-      // Reapply transform
-      avatar.visible = true;
-      avatar.scale.set(0.008, 0.008, 0.008);
-      avatar.position.set(0, -0.6, 0);
-      processPBRMaterials(avatar);
-      avatar.userData.noBloom = true;
-  
-      // Reattach lights
-      const keyLight = new THREE.PointLight(0xFFFFFF, 7, 10, 2);
-      keyLight.position.set(-100, 150, 100);
-      keyLight.castShadow = true;
-  
-      const rimLight = new THREE.PointLight(0xFFFFFF, 4, 50, 1);
-      rimLight.position.set(-100, 130, -100);
-  
-      const fillLight = new THREE.PointLight(0xFFFFFF, 6, 50, 1);
-      fillLight.position.set(100, 150, -100);
-  
-      avatar.add(keyLight, rimLight, fillLight);
-  
-      // Optional debug helpers
-      const keyLightHelper = new THREE.PointLightHelper(keyLight, 10, 0xff0000);
-      const rimLightHelper = new THREE.PointLightHelper(rimLight, 10, 0x00ff00);
-      const fillLightHelper = new THREE.PointLightHelper(fillLight, 10, 0x0000ff);
-      scene.add(keyLightHelper, rimLightHelper, fillLightHelper);
-  
-      // Finalize
-      window.avatar = avatar;
-      avatarReplaced = true;
-    }
-  
-    isLoadingPosedAvatar = false;
+function replaceAvatar(garment, posedAvatarUrl) {
+  if (isLoadingPosedAvatar || avatarReplaced) return;
+  isLoadingPosedAvatar = true;
+
+  if (window.avatar) {
+    scene.remove(window.avatar);
+    window.avatar = null;
   }
-  
+
+  const garmentName = garment.name?.toLowerCase() || '';
+  const posedKey = Object.keys(garmentToPosedAvatarMap).find(key =>
+    garmentName.includes(key) || key.includes(garmentName)
+  );
+
+  const avatar = posedAvatars[posedKey];
+  if (!avatar) {
+    console.warn("❌ Avatar not found in cache:", posedKey);
+    return;
+  }
+
+  const newAvatar = avatar.clone(true);
+  processPBRMaterials(newAvatar);
+  newAvatar.scale.set(0.008, 0.008, 0.008);
+  newAvatar.position.set(0, -0.6, 0);
+
+  const keyLight = new THREE.PointLight(0xFFFFFF, 7, 10, 2);
+  keyLight.position.set(-100, 150, 100);
+  keyLight.castShadow = true;
+
+  const rimLight = new THREE.PointLight(0xFFFFFF, 4, 50, 1);
+  rimLight.position.set(-100, 130, -100);
+
+  const fillLight = new THREE.PointLight(0xFFFFFF, 6, 50, 1);
+  fillLight.position.set(100, 150, -100);
+
+  newAvatar.add(keyLight, rimLight, fillLight);
+
+  window.avatar = newAvatar;
+  isLoadingPosedAvatar = false;
+
+  scene.add(newAvatar);
+}
+
 
 function cleanupSceneBeforePosing() {
     // 1. Remove the current avatar (initial or previous posed)
@@ -379,6 +369,7 @@ const garmentToPosedAvatarMap = {
 };
 
 loadAvatar();
+preloadAllPosedAvatars();
 
 
 // BACKGROUND
@@ -816,14 +807,6 @@ function animateEmissiveBurst(material, duration = 400, peak = 25) {
   
       
       selectedGarment.userData.isLocked = true;
-
-      // Trigger dissolve on all meshes of the garment
-selectedGarment.traverse(child => {
-    if (child.isMesh) {
-      dissolveMesh(child);
-    }
-  });
-  
   
       selectedGarment.traverse(child => {
         if (child.isMesh) {
@@ -848,6 +831,7 @@ selectedGarment.traverse(child => {
       });
    
    
+      // fire the dissolve and avatar swap
       const burstTimeline = gsap.timeline({
         onComplete: () => {
           selectedGarment.visible = false;
@@ -859,6 +843,11 @@ selectedGarment.traverse(child => {
           }
       
           const posedAvatarUrl = garmentToPosedAvatarMap[garmentName];
+          selectedGarment.traverse(child => {
+            if (child.isMesh) {
+              dissolveMesh(child);
+            }
+          });
           if (posedAvatarUrl) {
             replaceAvatar(selectedGarment, posedAvatarUrl);
           }
@@ -1013,25 +1002,6 @@ function restoreMaterial(obj) {
     }
   }
   
-  const particleVertexShader = `
-  attribute float aAlpha;
-  varying float vAlpha;
-  void main() {
-    vAlpha = aAlpha;
-    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-    gl_PointSize = 2.0;
-    gl_Position = projectionMatrix * mvPosition;
-  }
-`;
-
-const particleFragmentShader = `
-  varying float vAlpha;
-  void main() {
-    gl_FragColor = vec4(1.0, 1.0, 1.0, vAlpha); // white particles
-  }
-`;
-
-
 
   function animate() {
     stats.begin();
@@ -1112,43 +1082,9 @@ const particleFragmentShader = `
     bloomEffect.finalPass.uniforms["bloomTexture"].value = bloomEffect.bloomComposer.renderTarget2.texture;
     bloomEffect.finalComposer.render();
 
+    updateDissolves();
+
       
-
-// Update all active dissolves
-// 🌀 Update all active dissolves with falling motion
-const now = performance.now();
-for (let i = activeDissolves.length - 1; i >= 0; i--) {
-  const mesh = activeDissolves[i];
-  const { positions, alphas, velocities, geometry, startTime, duration } = mesh.userData;
-  const elapsed = now - startTime;
-  const progress = elapsed / duration;
-
-  const posAttr = geometry.getAttribute('position');
-
-  for (let j = 0; j < alphas.length; j++) {
-    alphas[j] = Math.max(0.0, 1.0 - progress);
-
-    // Apply falling velocity
-    positions[j * 3 + 0] += velocities[j * 3 + 0]; // x
-    positions[j * 3 + 1] += velocities[j * 3 + 1]; // y
-    positions[j * 3 + 2] += velocities[j * 3 + 2]; // z
-  }
-
-  posAttr.needsUpdate = true;
-  geometry.attributes.aAlpha.needsUpdate = true;
-
-  if (progress >= 1.0) {
-    scene.remove(mesh);
-    geometry.dispose();
-    mesh.material.dispose();
-    activeDissolves.splice(i, 1);
-  }
-}
-
-
-
-
-
     stats.end();
   }
   
@@ -1208,7 +1144,6 @@ function processPBRMaterials(object) {
     });
 }
 
-
 function dissolveMesh(mesh, duration = 2000) {
     const originalGeometry = mesh.geometry.clone();
     const positionAttr = originalGeometry.getAttribute('position');
@@ -1218,30 +1153,56 @@ function dissolveMesh(mesh, duration = 2000) {
     const alphaArray = new Float32Array(count).fill(1.0);
     originalGeometry.setAttribute('aAlpha', new THREE.BufferAttribute(alphaArray, 1));
   
-    // Velocity per particle
+    // Velocity per particle using normals
+    const normalAttr = mesh.geometry.getAttribute('normal');
     const velocityArray = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
-      velocityArray[i * 3]     = (Math.random() - 0.5) * 0.015; // x
-      velocityArray[i * 3 + 1] = -Math.random() * 0.03 - 0.01;  // y (falling)
-      velocityArray[i * 3 + 2] = (Math.random() - 0.5) * 0.015; // z
+      const nx = normalAttr.getX(i);
+      const ny = normalAttr.getY(i);
+      const nz = normalAttr.getZ(i);
+      const scalar = Math.random() * 0.0005;
+      velocityArray[i * 3 + 0] = nx * scalar;
+      velocityArray[i * 3 + 1] = ny * scalar;
+      velocityArray[i * 3 + 2] = nz * scalar;
     }
   
+    // 🔵 STEP 1: Get garment name
+    const garmentName = 
+    mesh.parent?.name?.toLowerCase() || 
+    mesh.name?.toLowerCase() || 
+    mesh.userData.sourceFile?.split('/').pop().split('.')[0].toLowerCase() || '';
+    
+    
+    // 🎨 STEP 2: Pick color based on garment name
+    let dissolveColor = new THREE.Color(0xb6e8f4); // default icy blue
+    if (garmentName.includes("puffer"))    dissolveColor = new THREE.Color(0xb6e8f4); // icy
+    if (garmentName.includes("charam"))    dissolveColor = new THREE.Color(0xffaac0); // pink
+    if (garmentName.includes("domi"))      dissolveColor = new THREE.Color(0xa0f0c0); // mint
+    if (garmentName.includes("jumpsuit"))  dissolveColor = new THREE.Color(0xfdf6b2); // soft yellow
+    console.log("🎨 Using dissolve color:", dissolveColor.getHexString());
+
+  
+    // 💠 STEP 3: Create shader material with uniform
     const particleMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        uColor: { value: dissolveColor }
+      },
       vertexShader: `
         attribute float aAlpha;
         varying float vAlpha;
         void main() {
           vAlpha = aAlpha;
-          gl_PointSize = 2.5;
+          gl_PointSize = 0.1;
           gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }
       `,
       fragmentShader: `
+        uniform vec3 uColor;
         varying float vAlpha;
         void main() {
           float dist = length(gl_PointCoord - vec2(0.5));
           if (dist > 0.5) discard;
-          gl_FragColor = vec4(1.0, 1.0, 1.0, vAlpha);
+          gl_FragColor = vec4(uColor, vAlpha);
         }
       `,
       transparent: true,
@@ -1254,10 +1215,8 @@ function dissolveMesh(mesh, duration = 2000) {
     particleMesh.scale.copy(mesh.getWorldScale(new THREE.Vector3()));
     scene.add(particleMesh);
   
-    // Hide original mesh
     mesh.visible = false;
   
-    // Store everything we need to update the particles
     particleMesh.userData = {
       positions: originalGeometry.attributes.position.array,
       alphas: alphaArray,
@@ -1268,5 +1227,35 @@ function dissolveMesh(mesh, duration = 2000) {
     };
   
     activeDissolves.push(particleMesh);
+  }
+  
+  
+  function updateDissolves() {
+    const now = performance.now();
+    for (let i = activeDissolves.length - 1; i >= 0; i--) {
+      const mesh = activeDissolves[i];
+      const { positions, alphas, velocities, geometry, startTime, duration } = mesh.userData;
+      const elapsed = now - startTime;
+      const progress = elapsed / duration;
+  
+      if (progress >= 1) {
+        scene.remove(mesh);
+        activeDissolves.splice(i, 1);
+        continue;
+      }
+  
+      for (let j = 0; j < alphas.length; j++) {
+        const idx = j * 3;
+        positions[idx + 0] += velocities[idx + 0];
+        positions[idx + 1] += velocities[idx + 1];
+        positions[idx + 2] += velocities[idx + 2];
+  
+        // Fade out
+        alphas[j] = 1.0 - progress;
+      }
+  
+      geometry.attributes.position.needsUpdate = true;
+      geometry.attributes.aAlpha.needsUpdate = true;
+    }
   }
   
