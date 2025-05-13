@@ -53,6 +53,8 @@ const gltfLoader = new GLTFLoader(loadingManager);
 gltfLoader.setDRACOLoader(dracoLoader);
 const BLOOM_LAYER = 1;
 
+
+
 let isMouseDown = false;
 let mouseDownStartTime = 0;
 const lightHelpers = []; 
@@ -64,10 +66,10 @@ let refreshRotationSpeed = 0.015; // Default rotation speed for the refresh arro
 const ANIMATION_DURATION = 1.5; // or try 1.5 for more drama
 
 const garmentToCursorMap = {
-    "jumpsuit": "./test.png",
-    "charam": "./test.png",
+    "jumpsuit": "./jumpsuit_cursor.png",
+    "charam": "./chara_cursor.png",
     "puffer": "./puffer_cursor.png",
-    "nb1": "./test.png",
+    "nb1": "./NB_cursor.png",
     "domi": "./test.png",
 };
 
@@ -76,7 +78,34 @@ let currentPosedAvatar = null;
 let isLoadingPosedAvatar = false;
 let garmentsVisible = true;
 let refreshArrow;
+const activeDissolves = [];
 
+const posedAvatars = {};
+const posedAvatarUrls = {
+  puffer: '/public/Avatar_Puffer_draco.glb',
+  jumpsuit: '/public/Avatar_Jumpsuit_draco.glb',
+  nb1: '/public/Avatar_NB_draco.glb',
+  charam: '/public/Avatar_Chara_draco.glb',
+  domi: '/public/Avatar_Domi_draco.glb'};
+
+
+function preloadAllPosedAvatars() {
+  Object.entries(posedAvatarUrls).forEach(([key, url]) => {
+    gltfLoader.load(url, (gltf) => {
+      const avatar = gltf.scene;
+      processPBRMaterials(avatar);
+      avatar.visible = false;
+      avatar.userData.noBloom = true;
+      avatar.scale.set(0.008, 0.008, 0.008);
+      avatar.position.set(0, -0.6, 0);
+      posedAvatars[key] = avatar;
+      scene.add(avatar);
+    });
+  });
+}
+
+
+  
 //STATS GUI 
 const stats = new Stats();
 // Optionally, set which panel to show:
@@ -93,9 +122,13 @@ const cameraStartLookAt = new THREE.Vector3(0, 0, 0);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
 
+
+
 // CAMERA SETUP 
 camera.position.set(0, 1.2, 6);  // Position camera at (0, 1.2, 6), making it look at the center of the scene
 camera.lookAt(new THREE.Vector3(0, 0, 0));  // Make sure it looks at the origin (0, 0, 0)
+camera.layers.enable(BLOOM_LAYER); // Layer 1
+
 
   
 //RENDER SCENE
@@ -106,6 +139,8 @@ renderer.setPixelRatio(window.devicePixelRatio);
 renderer.outputEncoding = THREE.sRGBEncoding;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
+renderer.toneMapping = THREE.NoToneMapping;
+renderer.outputEncoding = THREE.LinearEncoding;
 
 //ORBIT CONTROLS
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -161,6 +196,9 @@ function loadAvatar() {
         },
     );
 }
+
+preloadAllPosedAvatars();
+
 
 gltfLoader.load('/public/arrow_draco.glb', (gltf) => {
     refreshArrow = gltf.scene;
@@ -268,54 +306,45 @@ window.addEventListener('click', (event) => {
 });
 
 // REPLACE AVATAR ON CLICK WITH SELECTED GARMENT 
-function replaceAvatar(garment, posedAvatarUrl) {
-    if (isLoadingPosedAvatar) {
-        return;
+function replaceAvatar(selectedGarment, posedKey) {
+    Object.values(posedAvatars).forEach(a => a.visible = false);
+  
+    const avatar = posedAvatars[posedKey];
+    if (avatar) {
+      // Reapply transform
+      avatar.visible = true;
+      avatar.scale.set(0.008, 0.008, 0.008);
+      avatar.position.set(0, -0.6, 0);
+      processPBRMaterials(avatar);
+      avatar.userData.noBloom = true;
+  
+      // Reattach lights
+      const keyLight = new THREE.PointLight(0xFFFFFF, 7, 10, 2);
+      keyLight.position.set(-100, 150, 100);
+      keyLight.castShadow = true;
+  
+      const rimLight = new THREE.PointLight(0xFFFFFF, 4, 50, 1);
+      rimLight.position.set(-100, 130, -100);
+  
+      const fillLight = new THREE.PointLight(0xFFFFFF, 6, 50, 1);
+      fillLight.position.set(100, 150, -100);
+  
+      avatar.add(keyLight, rimLight, fillLight);
+  
+      // Optional debug helpers
+      const keyLightHelper = new THREE.PointLightHelper(keyLight, 10, 0xff0000);
+      const rimLightHelper = new THREE.PointLightHelper(rimLight, 10, 0x00ff00);
+      const fillLightHelper = new THREE.PointLightHelper(fillLight, 10, 0x0000ff);
+      scene.add(keyLightHelper, rimLightHelper, fillLightHelper);
+  
+      // Finalize
+      window.avatar = avatar;
+      avatarReplaced = true;
     }
-    isLoadingPosedAvatar = true;
-    if (avatarReplaced) return;
-
-    
-    if (window.avatar) {
-        scene.remove(window.avatar);
-        window.avatar = null;
-    }
-
-    gltfLoader.load(posedAvatarUrl,
-        (gltf) => {
-            const newAvatar = gltf.scene;
-            processPBRMaterials(newAvatar); // Add this line
-            newAvatar.scale.set(0.008, 0.008, 0.008);
-            newAvatar.position.set(0, -0.6, 0);
-            
-            // Add the same lights as the original avatar
-            const keyLight = new THREE.PointLight(0xFFFFFF, 7, 10, 2); // white color, intensity, distance, decay
-            keyLight.position.set(-100, 150, 100);
-            keyLight.castShadow = true;
-
-            const rimLight = new THREE.PointLight(0xFFFFFF, 4, 50, 1); // purple FFA0B0
-            rimLight.position.set(-100, 130, -100);
-
-            const fillLight = new THREE.PointLight(0xFFFFFF, 6, 50, 1); // green DCFFCB
-            fillLight.position.set(100, 150, -100);
-
-
-            newAvatar.add(keyLight, rimLight, fillLight);
-            
-            // Optional: Add debug helpers if needed
-            
-            const keyLightHelper = new THREE.PointLightHelper(keyLight, 10, 0xff0000);
-            const rimLightHelper = new THREE.PointLightHelper(rimLight, 10, 0x00ff00);
-            const fillLightHelper = new THREE.PointLightHelper(fillLight, 10, 0x0000ff);
-            scene.add(keyLightHelper, rimLightHelper, fillLightHelper);
-            
-            window.avatar = newAvatar;
-            isLoadingPosedAvatar = false;
-
-            scene.add(newAvatar);
-        },
-            );
-}
+  
+    isLoadingPosedAvatar = false;
+  }
+  
 
 function cleanupSceneBeforePosing() {
     // 1. Remove the current avatar (initial or previous posed)
@@ -430,24 +459,38 @@ function applyMaterialToAvatar() {
     });
 }
 
-//POST PROCESSING EFFECTS
-const bloomPass = new UnrealBloomPass(
-    new THREE.Vector2(window.innerWidth, window.innerHeight),
-    2,    // strength
-    0.8,    // radius
-    0.3     // threshold
-);
+//Garment flash on scale
+function flashEmissive(material, options = {}) {
+    const {
+        intensity = 5,
+        duration = 0.4,
+        returnTo = 0.5
+    } = options;
 
-bloomPass.threshold = 1;     // Only bloom pixels brighter than this value (1.0 = white)
-bloomPass.strength = 200;    // stronger
-bloomPass.radius = 400;      // softer
+    // Animate emissiveIntensity up then back down
+    gsap.fromTo(material, 
+        { emissiveIntensity: returnTo },
+        {
+            emissiveIntensity: intensity,
+            duration: duration / 2,
+            ease: "power2.out",
+            yoyo: true,
+            repeat: 1,
+            onComplete: () => {
+                material.emissiveIntensity = returnTo;
+            }
+        }
+    );
+}
 
-composer.addPass(bloomPass);
+  
+  
+  
 
 
 
 
-// ✅ GARMENT FILES
+// GARMENT FILES
 const garmentFiles = [
     { path: '/Puffer.glb', offset: 0 },
     { path: '/CharaM.glb', offset: 1 },
@@ -701,6 +744,7 @@ if (clickedObject.userData.isRefreshArrow) {
         isMouseDown = true;
         mouseDownStartTime = Date.now();
         selectedGarment = clickedGarment;
+        
         outlinePass.selectedObjects = [selectedGarment];
         outlinePass.edgeStrength = SETTINGS.GLOW.DEFAULT; 
     }
@@ -717,91 +761,118 @@ function fadeOutGlowEffect(object) {
     });
 }
 
-window.addEventListener('mouseup', (event) => {
+
+function animateEmissiveBurst(material, duration = 400, peak = 25) {
+    const start = performance.now();
+    material.emissiveIntensity = 0;
+  
+    function step() {
+      const now = performance.now();
+      const t = Math.min(1, (now - start) / duration); // normalized [0, 1]
+      material.emissiveIntensity = peak * Math.sin(t * Math.PI); // sine burst
+  
+      if (t < 1) {
+        requestAnimationFrame(step);
+      } else {
+        material.emissiveIntensity = 0;
+      }
+    }
+  
+    step();
+  }
+  
+
+
+
+  window.addEventListener('mouseup', (event) => {
     if (!isMouseDown || !selectedGarment) return;
     isMouseDown = false;
-
+  
     const holdDuration = Date.now() - mouseDownStartTime;
-
+  
     if (holdDuration > SETTINGS.GLOW.ACTIVATION_HOLD) {
+      if (avatarReplaced) return;
+  
+      garments.forEach(({ object }) => {
+        object.visible = (object === selectedGarment);
+        object.userData.isClickable = (object === selectedGarment);
+      });
+  
+      let garmentMesh = null;
+      selectedGarment.traverse(child => {
+        if (child.isMesh && !garmentMesh) {
+          garmentMesh = child;
+        }
+      });
+  
+      raycaster.setFromCamera(mouse, camera);
+      const box = new THREE.Box3().setFromObject(garmentMesh);
+      const center = new THREE.Vector3();
+      box.getCenter(center);
+  
+      const planeAtGarment = new THREE.Plane(new THREE.Vector3(0, 0, 1), -center.z);
+      const intersectPoint = new THREE.Vector3();
+      raycaster.ray.intersectPlane(planeAtGarment, intersectPoint);
+  
+      
+      selectedGarment.userData.isLocked = true;
 
-        // Prevent further interactions
-        if (avatarReplaced) return;
+      // Trigger dissolve on all meshes of the garment
+selectedGarment.traverse(child => {
+    if (child.isMesh) {
+      dissolveMesh(child);
+    }
+  });
+  
+  
+      selectedGarment.traverse(child => {
+        if (child.isMesh) {
+          child.layers.enable(bloomEffect.bloomLayer.mask);
+        }
+      });
+  
+      const garmentName = selectedGarment.name?.trim().toLowerCase() ||
+                          selectedGarment.userData.sourceFile?.split('/').pop().split('.')[0].toLowerCase() || "";
+  
+      let glowMesh = null;
+      selectedGarment.traverse(child => {
+        if (child.isMesh && glowMesh === null) {
+          glowMesh = child;
+        }
+      });
 
-        // Hide all other garments
-        garments.forEach(({ object }) => {
-            object.visible = (object === selectedGarment);
-            object.userData.isClickable = (object === selectedGarment);
-        });
-
-        // Get garment mesh to move/scale
-        let garmentMesh = null;
-        selectedGarment.traverse(child => {
-            if (child.isMesh && !garmentMesh) {
-                garmentMesh = child;
-            }
-        });
-
-
-        // Convert mouse to world position
-        raycaster.setFromCamera(mouse, camera);
-        const box = new THREE.Box3().setFromObject(garmentMesh);
-        const center = new THREE.Vector3();
-        box.getCenter(center);
-        
-        // Build a plane at the garment's Z depth
-        const zOffset = -0.5; // Negative values move it closer to camera, positive move it deeper
-        const planeatGarment = new THREE.Plane(new THREE.Vector3(0, 0, 1), -center.z);        
-        
-        const intersectPoint = new THREE.Vector3();
-        const didIntersect = raycaster.ray.intersectPlane(planeatGarment, intersectPoint);
+      selectedGarment.traverse(child => {
+        if (child.isMesh) {
+          child.userData.isSelectedGarment = true;
+        }
+      });
+   
+   
+      const burstTimeline = gsap.timeline({
+        onComplete: () => {
+          selectedGarment.visible = false;
+          avatarReplaced = true;
+      
+          const cursorUrl = garmentToCursorMap[garmentName];
+          if (cursorUrl) {
+            document.body.style.cursor = `url('${cursorUrl}') 16 16, auto`;
+          }
+      
+          const posedAvatarUrl = garmentToPosedAvatarMap[garmentName];
+          if (posedAvatarUrl) {
+            replaceAvatar(selectedGarment, posedAvatarUrl);
+          }
+        }
+      });
+      
 
 
-        // Lock orbiting
-        selectedGarment.userData.isLocked = true;
 
-        // Animate move
-        gsap.to(selectedGarment.position, {
-            x: intersectPoint.x,
-            y: intersectPoint.y,
-            z: intersectPoint.z,
-            duration: ANIMATION_DURATION,
-            ease: "power2.out"
-        });
+    }
+  });
+  
 
-        // Animate scale down and THEN replace avatar
-        let garmentName = selectedGarment.name?.trim().toLowerCase() || "";
-                if (!garmentName) {
-                    garmentName = selectedGarment.userData.sourceFile?.split('/').pop().split('.')[0].toLowerCase() || "";
-                }
-                   gsap.to(selectedGarment.scale, {
-            x: 0.01,
-            y: 0.01,
-            z: 0.01,
-            duration: ANIMATION_DURATION,
-            ease: "power2.out",
-            onComplete: () => {
-                avatarReplaced = true;
-                selectedGarment.visible = false;
-               // createBurstEffectAt(selectedGarment.position);
-               const cursorUrl = garmentToCursorMap[garmentName];
-               if (cursorUrl) {
-                   document.body.style.cursor = `url('${cursorUrl}') 16 16, auto`;
-               } else {
-                   console.warn("⚠️ No cursor image found for:", garmentName);
-               }
-               
-                // Look up avatar URL
-              
 
-                const posedAvatarUrl = garmentToPosedAvatarMap[garmentName];
-                if (posedAvatarUrl) {
-                    replaceAvatar(selectedGarment, posedAvatarUrl);
-                } 
-            }
-        });
-    } 
-});
 
 
 // Add key controls for camera positioning
@@ -848,23 +919,17 @@ window.addEventListener('keydown', (event) => {
 
 // Selective Bloom Effect Setup
 function setupSelectiveBloom() {
-
-    // Create a separate layer for bloom objects
     const bloomLayer = new THREE.Layers();
-    bloomLayer.set(1); // Layer 1 for sparkles
+    bloomLayer.set(1); // Layer 1
 
-    // 🎬 Render pass for the main scene
     const renderScene = new RenderPass(scene, camera);
-
-    // UnrealBloomPass for sparkles only
     const bloomPass = new UnrealBloomPass(
         new THREE.Vector2(window.innerWidth, window.innerHeight),
-        4,  // Bloom Strength
-        1.5,   // Radius
-        1      // Threshold
+        0.3, // strength
+        0.5, // radius
+        0.01 // threshold
     );
 
-    // Custom shader for combining bloom & base render
     const finalPass = new ShaderPass(
         new THREE.ShaderMaterial({
             uniforms: {
@@ -885,26 +950,22 @@ function setupSelectiveBloom() {
                 void main() {
                     vec4 base = texture2D(baseTexture, vUv);
                     vec4 bloom = texture2D(bloomTexture, vUv);
-                    gl_FragColor = base + vec4(bloom.rgb * 1.5, bloom.a); // Increase glow subtly
+                    gl_FragColor = base + vec4(bloom.rgb, 1.0); // additive
                 }
             `
-        }), "baseTexture"
+        }),
+        "baseTexture"
     );
     finalPass.needsSwap = true;
 
-    // 📸 Separate bloom rendering pipeline
     const bloomComposer = new EffectComposer(renderer);
     bloomComposer.renderToScreen = false;
     bloomComposer.addPass(renderScene);
     bloomComposer.addPass(bloomPass);
 
-    // 🎭 Final composite render (scene + bloom)
     const finalComposer = new EffectComposer(renderer);
     finalComposer.addPass(renderScene);
-    
-    // 🌟 ADD THIS LINE: Add the outline pass to the final composer
-    finalComposer.addPass(outlinePass);
-    
+    finalComposer.addPass(outlinePass); // keep outline
     finalComposer.addPass(finalPass);
 
     return {
@@ -915,80 +976,95 @@ function setupSelectiveBloom() {
     };
 }
 
+
 // Initialize the bloom effect
 const bloomEffect = setupSelectiveBloom();
 
 // Darken Non-Bloomed Objects 
-function darkenNonBloomed(obj) {
-    if (obj === scene) {
-        obj.userData.originalBackground = obj.background;
-        obj.background = null;
-        return;
-      }
-    
-      if (
-        obj.isMesh &&
-        !bloomEffect.bloomLayer.test(obj.layers) &&
-        obj.userData.noBloom !== true
-      ) {
-        obj.userData.originalMaterial = obj.material;
-        obj.material = new THREE.MeshBasicMaterial({ color: 0x000000 });
-      }}
+function darkenNonBloomed(obj, bloomLayer) {
+    if (obj === scene) return;
+  
+    if (
+      obj.isMesh &&
+      !bloomLayer.test(obj.layers) &&
+      obj.userData.noBloom !== true &&
+      obj.userData.isSelectedGarment !== true
+    ) {
+      obj.userData.originalMaterial = obj.material;
+      obj.material = new THREE.MeshBasicMaterial({ color: 0x000000 });
+    }
+  }
+  
+  
+  
+  
 
 // Restore Original Materials After Bloom Pass
 function restoreMaterial(obj) {
+    if (obj.isMesh && obj.userData.originalMaterial) {
+
+      obj.material = obj.userData.originalMaterial;
+      delete obj.userData.originalMaterial;
+    }
+  
     if (obj === scene && obj.userData.originalBackground !== undefined) {
       obj.background = obj.userData.originalBackground;
-      obj.userData.originalBackground = undefined;
-      return;
-    }
-  
-    if (obj.userData.originalMaterial) {
-      obj.material = obj.userData.originalMaterial;
-      obj.userData.originalMaterial = null;
+      delete obj.userData.originalBackground;
     }
   }
+  
+  const particleVertexShader = `
+  attribute float aAlpha;
+  varying float vAlpha;
+  void main() {
+    vAlpha = aAlpha;
+    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    gl_PointSize = 2.0;
+    gl_Position = projectionMatrix * mvPosition;
+  }
+`;
 
-function animate() {
-    stats.begin(); 
+const particleFragmentShader = `
+  varying float vAlpha;
+  void main() {
+    gl_FragColor = vec4(1.0, 1.0, 1.0, vAlpha); // white particles
+  }
+`;
+
+
+
+  function animate() {
+    stats.begin();
+
     requestAnimationFrame(animate);
     const delta = clock.getDelta();
-    
-    // Gradual glow while mouse is held down
-    if (isMouseDown && selectedGarment) {
-        const holdDuration = Date.now() - mouseDownStartTime;
-        const holdProgress = Math.min(1.0, holdDuration / SETTINGS.GLOW.HOLD_DURATION); // Max out at 1 second
-        
-        // Calculate glow intensity based on how long the mouse has been held
-        const maxVisualStrength = 1.25;
-        const currentGlow = SETTINGS.GLOW.DEFAULT + (maxVisualStrength - SETTINGS.GLOW.DEFAULT) * holdProgress;
-                outlinePass.edgeStrength = currentGlow;
-    }
   
+    // Glow buildup while mouse is held
+    if (isMouseDown && selectedGarment) {
+      const holdDuration = Date.now() - mouseDownStartTime;
+      const holdProgress = Math.min(1.0, holdDuration / SETTINGS.GLOW.HOLD_DURATION);
+      const maxVisualStrength = 1.25;
+      const currentGlow = SETTINGS.GLOW.DEFAULT + (maxVisualStrength - SETTINGS.GLOW.DEFAULT) * holdProgress;
+      outlinePass.edgeStrength = currentGlow;
+    }
+      
+    // Garment movement and rotation
     garments.forEach(({ object }) => {
-
-        if (object.userData.isLocked) return;
-
-      // Ensure each garment has a unique rotation offset
+      if (object.userData.isLocked) return;
+  
       if (object.userData.rotationOffset === undefined) {
         object.userData.rotationOffset = Math.random() * Math.PI * 2;
       }
   
-      // Define base speeds
-      const baseOrbitSpeed = SETTINGS.ORBIT.BASE_SPEED;  // Normal orbit speed for non-hovered garments 0.002
-      
-      // Initialize orbit speed if undefined
+      const baseOrbitSpeed = SETTINGS.ORBIT.BASE_SPEED;
+  
       if (object.userData.orbitSpeed === undefined) {
         object.userData.orbitSpeed = baseOrbitSpeed;
       }
-      
-      // Set target orbit speed based on hover state
+  
       const targetOrbitSpeed = object.userData.isHovered ? 0 : baseOrbitSpeed;
-      
-      // Slow down to a stop - increase this value for faster transitions
       object.userData.orbitSpeed = THREE.MathUtils.lerp(object.userData.orbitSpeed, targetOrbitSpeed, 0.2);
   
-      // Update orbit angle and position using the interpolated speed
       object.userData.orbitAngle = (object.userData.orbitAngle || 0) + object.userData.orbitSpeed;
       object.position.set(
         Math.cos(object.userData.orbitAngle) * object.userData.orbitRadius,
@@ -996,71 +1072,96 @@ function animate() {
         Math.sin(object.userData.orbitAngle) * object.userData.orbitRadius
       );
   
-      // Set self-rotation speed (optionally slowing down the hovered garment)
       if (object.userData.rotationSpeed === undefined || isNaN(object.userData.rotationSpeed)) {
-        object.userData.rotationSpeed = SETTINGS.ROTATION.BASE_SPEED;  // Fixed - use the constant you declared
+        object.userData.rotationSpeed = SETTINGS.ROTATION.BASE_SPEED;
       }
+  
       const targetRotationSpeed = object.userData.isHovered ? 0.1 : SETTINGS.ROTATION.BASE_SPEED;
-
-      // Slow rotation speed
       object.userData.rotationSpeed = THREE.MathUtils.lerp(object.userData.rotationSpeed, targetRotationSpeed, 0.02);
   
-      // Apply self-rotation
       object.rotation.y += object.userData.rotationSpeed * delta + Math.sin(object.userData.rotationOffset) * 0.01;
-
-      // Update helpers position
+  
       if (object.userData.updateHelpers) {
         object.userData.updateHelpers();
       }
     });
   
-    // Rotate avatar 
+    // Avatar and UI rotation
     if (window.avatar) {
       window.avatar.rotation.y += 0.005;
     }
   
-    // Rotate arrow
     if (refreshArrow) {
-        refreshArrow.rotation.y += refreshRotationSpeed;
+      refreshArrow.rotation.y += refreshRotationSpeed;
     }
+  
+    controls.update();
+    camera.updateMatrixWorld();
+  
+
+
+      
+    // 🌟 Selective Bloom Pass
+    scene.traverse(obj => darkenNonBloomed(obj, bloomEffect.bloomLayer));
     
-    controls.update(); 
-
-
-
-
-
-camera.updateMatrixWorld(); 
+   
     
-    // SELECTIVE BLOOM RENDERING PROCESS
-    
-    // 1. First render the bloom pass 
-    scene.traverse(darkenNonBloomed);
-
-    darkenNonBloomed(scene);
     bloomEffect.bloomComposer.render();
     scene.traverse(restoreMaterial);
-
-    restoreMaterial(scene);
-    
-    // 2. Use the bloom result as input to the final composite render
-    bloomEffect.finalPass.uniforms["bloomTexture"].value = 
-        bloomEffect.bloomComposer.renderTarget2.texture;
-    
-    // 3. Render the final composite to screen
+  
+    bloomEffect.finalPass.uniforms["bloomTexture"].value = bloomEffect.bloomComposer.renderTarget2.texture;
     bloomEffect.finalComposer.render();
 
-    stats.end(); // End performance measuring
+      
 
+// Update all active dissolves
+// 🌀 Update all active dissolves with falling motion
+const now = performance.now();
+for (let i = activeDissolves.length - 1; i >= 0; i--) {
+  const mesh = activeDissolves[i];
+  const { positions, alphas, velocities, geometry, startTime, duration } = mesh.userData;
+  const elapsed = now - startTime;
+  const progress = elapsed / duration;
+
+  const posAttr = geometry.getAttribute('position');
+
+  for (let j = 0; j < alphas.length; j++) {
+    alphas[j] = Math.max(0.0, 1.0 - progress);
+
+    // Apply falling velocity
+    positions[j * 3 + 0] += velocities[j * 3 + 0]; // x
+    positions[j * 3 + 1] += velocities[j * 3 + 1]; // y
+    positions[j * 3 + 2] += velocities[j * 3 + 2]; // z
   }
+
+  posAttr.needsUpdate = true;
+  geometry.attributes.aAlpha.needsUpdate = true;
+
+  if (progress >= 1.0) {
+    scene.remove(mesh);
+    geometry.dispose();
+    mesh.material.dispose();
+    activeDissolves.splice(i, 1);
+  }
+}
+
+
+
+
+
+    stats.end();
+  }
+  
   
   raycaster.setFromCamera(mouse, camera);
   const testIntersects = raycaster.intersectObjects(scene.children, true);
+
+  
   
   animate();
 
 // Add this callback to properly handle PBR materials
-// Replace your processPBRMaterials function with this streamlined version
+
 function processPBRMaterials(object) {
     // Force anisotropy on all textures for better distance appearance
     const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
@@ -1106,3 +1207,66 @@ function processPBRMaterials(object) {
         }
     });
 }
+
+
+function dissolveMesh(mesh, duration = 2000) {
+    const originalGeometry = mesh.geometry.clone();
+    const positionAttr = originalGeometry.getAttribute('position');
+    const count = positionAttr.count;
+  
+    // Alpha per particle
+    const alphaArray = new Float32Array(count).fill(1.0);
+    originalGeometry.setAttribute('aAlpha', new THREE.BufferAttribute(alphaArray, 1));
+  
+    // Velocity per particle
+    const velocityArray = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+      velocityArray[i * 3]     = (Math.random() - 0.5) * 0.015; // x
+      velocityArray[i * 3 + 1] = -Math.random() * 0.03 - 0.01;  // y (falling)
+      velocityArray[i * 3 + 2] = (Math.random() - 0.5) * 0.015; // z
+    }
+  
+    const particleMaterial = new THREE.ShaderMaterial({
+      vertexShader: `
+        attribute float aAlpha;
+        varying float vAlpha;
+        void main() {
+          vAlpha = aAlpha;
+          gl_PointSize = 2.5;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        varying float vAlpha;
+        void main() {
+          float dist = length(gl_PointCoord - vec2(0.5));
+          if (dist > 0.5) discard;
+          gl_FragColor = vec4(1.0, 1.0, 1.0, vAlpha);
+        }
+      `,
+      transparent: true,
+      depthWrite: false
+    });
+  
+    const particleMesh = new THREE.Points(originalGeometry, particleMaterial);
+    particleMesh.position.copy(mesh.getWorldPosition(new THREE.Vector3()));
+    particleMesh.quaternion.copy(mesh.getWorldQuaternion(new THREE.Quaternion()));
+    particleMesh.scale.copy(mesh.getWorldScale(new THREE.Vector3()));
+    scene.add(particleMesh);
+  
+    // Hide original mesh
+    mesh.visible = false;
+  
+    // Store everything we need to update the particles
+    particleMesh.userData = {
+      positions: originalGeometry.attributes.position.array,
+      alphas: alphaArray,
+      velocities: velocityArray,
+      geometry: originalGeometry,
+      startTime: performance.now(),
+      duration
+    };
+  
+    activeDissolves.push(particleMesh);
+  }
+  
