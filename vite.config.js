@@ -1,16 +1,24 @@
 import { defineConfig } from 'vite';
 
+console.log('✅ Vite config loaded!');
+
 export default defineConfig({
   server: {
     mimeTypes: {
       'model/gltf-binary': ['glb'], // Ensuring GLB files are recognized
     }
   },
+
+  base: '/threejs-website/',
+
   build: {
-    outDir: 'dist', // Output folder for the production build
+    outDir: 'dist',
     rollupOptions: {
-      input: 'index.html', // Make sure index.html is used as the entry point
-      
-    }
+      input: 'index.html',
+    },
+  },
+
+  optimizeDeps: {
+    include: ['three']
   }
 });

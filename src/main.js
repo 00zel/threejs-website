@@ -143,7 +143,7 @@ function preloadAllPosedAvatars() {
   
 function loadAvatar() {
     gltfLoader.load(  
-        '/public/Avatar_Base2.glb',
+        './Avatar_Base2.glb',
         (gltf) => {
             const avatar = gltf.scene;
             processPBRMaterials(avatar); // Add this line
@@ -186,7 +186,7 @@ function loadAvatar() {
 }
 
 
-gltfLoader.load('/public/arrow_draco.glb', (gltf) => {
+gltfLoader.load('./arrow_draco.glb', (gltf) => {
     refreshArrow = gltf.scene;
     refreshArrow.scale.set(0.1, 0.1, 0.1);
     refreshArrow.position.set(0, 1.5, 0);
@@ -361,11 +361,11 @@ function cleanupSceneBeforePosing() {
   
 // Mapping between garments and their associated posed avatars
 const garmentToPosedAvatarMap = {
-    'jumpsuit': '/public/Avatar_Jumpsuit_draco.glb',
-    'charam': '/public/Avatar_Chara_draco.glb',
-    'domi': '/public/Avatar_Domi_draco.glb',
-    'puffer': '/public/Avatar_Puffer_draco.glb',
-    'nb1': '/public/Avatar_NB_draco.glb'
+    'jumpsuit': './Avatar_Jumpsuit_draco.glb',
+    'charam': './Avatar_Chara_draco.glb',
+    'domi': './Avatar_Domi_draco.glb',
+    'puffer': './Avatar_Puffer_draco.glb',
+    'nb1': './Avatar_NB_draco.glb'
 };
 
 loadAvatar();
@@ -483,11 +483,11 @@ function flashEmissive(material, options = {}) {
 
 // GARMENT FILES
 const garmentFiles = [
-    { path: '/Puffer.glb', offset: 0 },
-    { path: '/CharaM.glb', offset: 1 },
-    { path: '/Domi.glb', offset: 2 },
-    { path: '/Jumpsuit.glb', offset: 3 },
-    { path: '/NB1.glb', offset: 4 }
+    { path: './Puffer.glb', offset: 0 },
+    { path: './CharaM.glb', offset: 1 },
+    { path: './Domi.glb', offset: 2 },
+    { path: './Jumpsuit.glb', offset: 3 },
+    { path: './NB1.glb', offset: 4 }
 ];
 
 
