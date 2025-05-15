@@ -69,7 +69,7 @@ const garmentToCursorMap = {
     "jumpsuit": "./jumpsuit_cursor.png",
     "charam": "./chara_cursor.png",
     "puffer": "./puffer_cursor.png",
-    "nb1": "./NB_cursor.png",
+    "nb": "./NB_cursor.png",
     "domi": "./test.png",
 };
 
@@ -82,10 +82,6 @@ let currentPosedAvatar = null;
 let isLoadingPosedAvatar = false;
 let garmentsVisible = true;
 let refreshArrow;
-
-
-
-
 
 //STATS GUI 
 const stats = new Stats();
@@ -365,7 +361,7 @@ const garmentToPosedAvatarMap = {
     'charam': './Avatar_Chara_draco.glb',
     'domi': './Avatar_Domi_draco.glb',
     'puffer': './Avatar_Puffer_draco.glb',
-    'nb1': './Avatar_NB_draco.glb'
+    'nb': './Avatar_NB_draco.glb'
 };
 
 loadAvatar();
@@ -483,18 +479,18 @@ function flashEmissive(material, options = {}) {
 
 // GARMENT FILES
 const garmentFiles = [
-    { path: './Puffer.glb', offset: 0 },
-    { path: './CharaM.glb', offset: 1 },
-    { path: './Domi.glb', offset: 2 },
-    { path: './Jumpsuit.glb', offset: 3 },
-    { path: './NB1.glb', offset: 4 }
+    { path: './Puffer_draco.glb', offset: 0 },
+    { path: './CharaM_draco.glb', offset: 1 },
+    { path: './Domi_draco.glb', offset: 2 },
+    { path: './Jumpsuit_draco.glb', offset: 3 },
+    { path: './NB_draco.glb', offset: 4 }
 ];
 
 
 // LOAD GARMENTS AND POSITION THEM
 function loadGarment(filePath, index) {
-    const loader = new GLTFLoader();
-    loader.load(
+   // const loader = GLTFLoader();
+    gltfLoader.load(
       filePath,
       (gltf) => {
         const garment = gltf.scene;
@@ -1172,13 +1168,16 @@ function dissolveMesh(mesh, duration = 2000) {
     mesh.name?.toLowerCase() || 
     mesh.userData.sourceFile?.split('/').pop().split('.')[0].toLowerCase() || '';
     
-    
+    console.log("🧵 garmentName:", garmentName);
+
     // 🎨 STEP 2: Pick color based on garment name
     let dissolveColor = new THREE.Color(0xb6e8f4); // default icy blue
     if (garmentName.includes("puffer"))    dissolveColor = new THREE.Color(0xb6e8f4); // icy
-    if (garmentName.includes("charam"))    dissolveColor = new THREE.Color(0xffaac0); // pink
-    if (garmentName.includes("domi"))      dissolveColor = new THREE.Color(0xa0f0c0); // mint
-    if (garmentName.includes("jumpsuit"))  dissolveColor = new THREE.Color(0xfdf6b2); // soft yellow
+    if (garmentName.includes("charam"))    dissolveColor = new THREE.Color(0xF4FFA1); // yellow
+    if (garmentName.includes("domi"))      dissolveColor = new THREE.Color(0xDE9CFF); // TBD
+    if (garmentName.includes("jumpsuit"))  dissolveColor = new THREE.Color(0xFFA3F5); // pink
+    if (garmentName.includes("nb"))  dissolveColor = new THREE.Color(0xD7FFB7); // green
+
     console.log("🎨 Using dissolve color:", dissolveColor.getHexString());
 
   
