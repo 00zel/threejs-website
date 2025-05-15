@@ -336,7 +336,9 @@ gsap.to(camera.position, {
   y: 0,
   z: 3,
   duration: 1.5,
-  ease: "power2.out"
+  ease: "power2.out",
+    onUpdate: () => controls.update() 
+
 });
 
 gsap.to(controls.target, {
@@ -347,6 +349,19 @@ gsap.to(controls.target, {
   ease: "power2.out",
   onUpdate: () => controls.update()
 });
+
+
+// Lock camera to orbit/zoom mode and disable panning
+controls.enablePan = false;
+controls.enableZoom = true;
+controls.enableRotate = true;
+
+controls.minDistance = 1.5;
+controls.maxDistance = 5;
+
+controls.update();
+
+
 
 }
 
