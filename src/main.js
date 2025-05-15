@@ -185,7 +185,7 @@ function loadAvatar() {
 gltfLoader.load('./arrow_draco.glb', (gltf) => {
     refreshArrow = gltf.scene;
     refreshArrow.scale.set(0.1, 0.1, 0.1);
-    refreshArrow.position.set(0, 1.5, 0);
+    refreshArrow.position.set(0, 1.3, 0);
     refreshArrow.userData.isRefreshArrow = true;
 
     refreshArrow.traverse((child) => {
@@ -329,6 +329,25 @@ function replaceAvatar(garment, posedAvatarUrl) {
   isLoadingPosedAvatar = false;
 
   scene.add(newAvatar);
+
+  // Smoothly move the camera and update orbit target
+gsap.to(camera.position, {
+  x: 0,
+  y: 0,
+  z: 3,
+  duration: 1.5,
+  ease: "power2.out"
+});
+
+gsap.to(controls.target, {
+  x: 0,
+  y: 0.18,
+  z: 0,
+  duration: 1.5,
+  ease: "power2.out",
+  onUpdate: () => controls.update()
+});
+
 }
 
 
