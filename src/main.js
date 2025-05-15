@@ -1140,121 +1140,147 @@ function processPBRMaterials(object) {
     });
 }
 
-function dissolveMesh(mesh, duration = 2000) {
-    const originalGeometry = mesh.geometry.clone();
-    const positionAttr = originalGeometry.getAttribute('position');
-    const count = positionAttr.count;
-  
-    // Alpha per particle
-    const alphaArray = new Float32Array(count).fill(1.0);
-    originalGeometry.setAttribute('aAlpha', new THREE.BufferAttribute(alphaArray, 1));
-  
-    // Velocity per particle using normals
-    const normalAttr = mesh.geometry.getAttribute('normal');
-    const velocityArray = new Float32Array(count * 3);
-    for (let i = 0; i < count; i++) {
-      const nx = normalAttr.getX(i);
-      const ny = normalAttr.getY(i);
-      const nz = normalAttr.getZ(i);
-      const scalar = Math.random() * 0.0005;
-      velocityArray[i * 3 + 0] = nx * scalar;
-      velocityArray[i * 3 + 1] = ny * scalar;
-      velocityArray[i * 3 + 2] = nz * scalar;
-    }
-  
-    // 🔵 STEP 1: Get garment name
-    const garmentName = 
-    mesh.parent?.name?.toLowerCase() || 
-    mesh.name?.toLowerCase() || 
+function dissolveMesh(mesh, duration = 3000, targetCenter = new THREE.Vector3(0, 0, 0)) {
+  const originalGeometry = mesh.geometry.clone();
+  const positionAttr = originalGeometry.getAttribute('position');
+  const count = positionAttr.count;
+
+  const alphaArray = new Float32Array(count).fill(1.0);
+  originalGeometry.setAttribute('aAlpha', new THREE.BufferAttribute(alphaArray, 1));
+
+  // 🎯 Generate 5 target clusters near the avatar
+  const clusters = Array.from({ length: 7 }, () =>
+    targetCenter.clone().add(new THREE.Vector3(
+      (Math.random() - 0.5) * 3,
+      (Math.random() - 0.5) * 3,
+      (Math.random() - 0.5) * 3
+    ))
+  );
+
+  // 🌪️ Store original positions + assigned cluster per particle
+  const originalPositions = new Float32Array(count * 3);
+  const targetClusters = [];
+
+  for (let i = 0; i < count; i++) {
+    const px = positionAttr.getX(i);
+    const py = positionAttr.getY(i);
+    const pz = positionAttr.getZ(i);
+
+    originalPositions[i * 3 + 0] = px;
+    originalPositions[i * 3 + 1] = py;
+    originalPositions[i * 3 + 2] = pz;
+
+    const cluster = clusters[Math.floor(Math.random() * clusters.length)];
+    targetClusters.push(mesh.worldToLocal(cluster.clone()));
+  }
+
+  // 🎨 Color selection by garment name
+  const garmentName =
+    mesh.parent?.name?.toLowerCase() ||
+    mesh.name?.toLowerCase() ||
     mesh.userData.sourceFile?.split('/').pop().split('.')[0].toLowerCase() || '';
-    
-    console.log("🧵 garmentName:", garmentName);
 
-    // 🎨 STEP 2: Pick color based on garment name
-    let dissolveColor = new THREE.Color(0xb6e8f4); // default icy blue
-    if (garmentName.includes("puffer"))    dissolveColor = new THREE.Color(0xb6e8f4); // icy
-    if (garmentName.includes("charam"))    dissolveColor = new THREE.Color(0xF4FFA1); // yellow
-    if (garmentName.includes("domi"))      dissolveColor = new THREE.Color(0xDE9CFF); // TBD
-    if (garmentName.includes("jumpsuit"))  dissolveColor = new THREE.Color(0xFFA3F5); // pink
-    if (garmentName.includes("nb"))  dissolveColor = new THREE.Color(0xD7FFB7); // green
+  let dissolveColor = new THREE.Color(0xb6e8f4);
+  if (garmentName.includes("puffer")) dissolveColor = new THREE.Color(0xb6e8f4);
+  if (garmentName.includes("charam")) dissolveColor = new THREE.Color(0xF4FFA1);
+  if (garmentName.includes("domi")) dissolveColor = new THREE.Color(0xDE9CFF);
+  if (garmentName.includes("jumpsuit")) dissolveColor = new THREE.Color(0xFFA3F5);
+  if (garmentName.includes("nb")) dissolveColor = new THREE.Color(0xD7FFB7);
 
-    console.log("🎨 Using dissolve color:", dissolveColor.getHexString());
+  const particleMaterial = new THREE.ShaderMaterial({
+    uniforms: { uColor: { value: dissolveColor } },
+    vertexShader: `
+      attribute float aAlpha;
+      varying float vAlpha;
+      void main() {
+        vAlpha = aAlpha;
+        gl_PointSize = 0.1;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 uColor;
+      varying float vAlpha;
+      void main() {
+        float dist = length(gl_PointCoord - vec2(0.5));
+        if (dist > 0.5) discard;
+float glow = smoothstep(0.5, 0.0, dist); // glow stronger near center of point
+gl_FragColor = vec4(uColor * glow, vAlpha * glow);
+      }
+    `,
+    transparent: true,
+    depthWrite: false
+  });
+
+  const particleMesh = new THREE.Points(originalGeometry, particleMaterial);
+  particleMesh.position.copy(mesh.getWorldPosition(new THREE.Vector3()));
+  particleMesh.quaternion.copy(mesh.getWorldQuaternion(new THREE.Quaternion()));
+  particleMesh.scale.copy(mesh.getWorldScale(new THREE.Vector3()));
+  scene.add(particleMesh);
+
+  mesh.visible = false;
+
+  particleMesh.userData = {
+    originalPositions,
+    targetClusters,
+    alphas: alphaArray,
+    geometry: originalGeometry,
+    startTime: performance.now(),
+    duration
+  };
+
+  activeDissolves.push(particleMesh);
+}
 
   
-    // 💠 STEP 3: Create shader material with uniform
-    const particleMaterial = new THREE.ShaderMaterial({
-      uniforms: {
-        uColor: { value: dissolveColor }
-      },
-      vertexShader: `
-        attribute float aAlpha;
-        varying float vAlpha;
-        void main() {
-          vAlpha = aAlpha;
-          gl_PointSize = 0.1;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-      fragmentShader: `
-        uniform vec3 uColor;
-        varying float vAlpha;
-        void main() {
-          float dist = length(gl_PointCoord - vec2(0.5));
-          if (dist > 0.5) discard;
-          gl_FragColor = vec4(uColor, vAlpha);
-        }
-      `,
-      transparent: true,
-      depthWrite: false
-    });
   
-    const particleMesh = new THREE.Points(originalGeometry, particleMaterial);
-    particleMesh.position.copy(mesh.getWorldPosition(new THREE.Vector3()));
-    particleMesh.quaternion.copy(mesh.getWorldQuaternion(new THREE.Quaternion()));
-    particleMesh.scale.copy(mesh.getWorldScale(new THREE.Vector3()));
-    scene.add(particleMesh);
-  
-    mesh.visible = false;
-  
-    particleMesh.userData = {
-      positions: originalGeometry.attributes.position.array,
-      alphas: alphaArray,
-      velocities: velocityArray,
-      geometry: originalGeometry,
-      startTime: performance.now(),
+ function updateDissolves() {
+  const now = performance.now();
+
+  for (let i = activeDissolves.length - 1; i >= 0; i--) {
+    const mesh = activeDissolves[i];
+    const {
+      originalPositions,
+      targetClusters,
+      alphas,
+      geometry,
+      startTime,
       duration
-    };
-  
-    activeDissolves.push(particleMesh);
-  }
-  
-  
-  function updateDissolves() {
-    const now = performance.now();
-    for (let i = activeDissolves.length - 1; i >= 0; i--) {
-      const mesh = activeDissolves[i];
-      const { positions, alphas, velocities, geometry, startTime, duration } = mesh.userData;
-      const elapsed = now - startTime;
-      const progress = elapsed / duration;
-  
-      if (progress >= 1) {
-        scene.remove(mesh);
-        activeDissolves.splice(i, 1);
-        continue;
-      }
-  
-      for (let j = 0; j < alphas.length; j++) {
-        const idx = j * 3;
-        positions[idx + 0] += velocities[idx + 0];
-        positions[idx + 1] += velocities[idx + 1];
-        positions[idx + 2] += velocities[idx + 2];
-  
-        // Fade out
-        alphas[j] = 1.0 - progress;
-      }
-  
-      geometry.attributes.position.needsUpdate = true;
-      geometry.attributes.aAlpha.needsUpdate = true;
+    } = mesh.userData;
+
+    const positions = geometry.attributes.position.array;
+    const elapsed = now - startTime;
+    const progress = elapsed / duration;
+
+    if (progress >= 1) {
+      scene.remove(mesh);
+      activeDissolves.splice(i, 1);
+      continue;
     }
+
+    for (let j = 0; j < alphas.length; j++) {
+      const idx = j * 3;
+
+      const ox = originalPositions[idx + 0];
+      const oy = originalPositions[idx + 1];
+      const oz = originalPositions[idx + 2];
+
+      const tx = targetClusters[j].x;
+      const ty = targetClusters[j].y;
+      const tz = targetClusters[j].z;
+
+      const t = 1.0 - progress;
+
+      positions[idx + 0] = ox * t + tx * progress + Math.sin(now * 0.002 + idx) * 0.01;
+      positions[idx + 1] = oy * t + ty * progress + Math.cos(now * 0.002 + idx) * 0.01;
+      positions[idx + 2] = oz * t + tz * progress + Math.sin(now * 0.001 + idx) * 0.01;
+
+      alphas[j] = 1.0 - progress;
+    }
+
+    geometry.attributes.position.needsUpdate = true;
+    geometry.attributes.aAlpha.needsUpdate = true;
   }
+}
+
   
