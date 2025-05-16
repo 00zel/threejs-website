@@ -201,6 +201,101 @@ gltfLoader.load('./arrow_draco.glb', (gltf) => {
 });
 
 
+
+
+// Garment overlay content map
+const garmentOverlayData = {
+  puffer: {
+    title: "Harper Collective X MCM",
+    role: "Garment Design",
+    medium: "Fashion Film",
+    link: "https://thenewface.io/harper-collective-store/",
+    tools: [
+      { label: "Design & Creation", value: "CLO 3D" },
+      { label: "Detailing", value: "ZBrush" },
+      { label: "Rigging", value: "Autodesk Maya" },
+      { label: "Texturing", value: "Substance Painter" },
+      { label: "Rendering", value: "Unreal Engine" }
+    ],
+    finalImages: ["final1.jpg", "final2.jpg"],
+    devImages: ["dev1.jpg", "dev2.jpg"]
+  },
+  jumpsuit: {
+    title: "Dreamscape Flightwear",
+    role: "3D Fashion Designer",
+    medium: "Immersive Lookbook",
+    link: "https://example.com/dreamscape",
+    tools: [
+      { label: "Design", value: "CLO 3D" },
+      { label: "Render", value: "Blender Eevee" }
+    ],
+    finalImages: ["jumpsuit_final1.jpg", "jumpsuit_final2.jpg"],
+    devImages: ["jumpsuit_dev1.jpg", "jumpsuit_dev2.jpg"]
+  },
+  charam: {
+    title: "The New Face for NVIDIA Omniverse",
+    role: "Garment Asset Manager",
+    medium: "Interactive Showroom",
+    link: "https://example.com/nvidia",
+    tools: [
+      { label: "Design", value: "CLO 3D" },
+      { label: "Rigging", value: "Maya" },
+      { label: "Texturing", value: "Substance Painter" },
+      { label: "Render", value: "Unreal Engine" }
+    ],
+    finalImages: ["final1.jpg", "final2.jpg"],
+    devImages: ["dev1.jpg", "dev2.jpg"]
+  },
+  domi: {
+    title: "The New Face for NVIDIA Omniverse",
+    role: "Garment Asset Manager",
+    medium: "Interactive Showroom",
+    link: "https://example.com/nvidia",
+    tools: [
+      { label: "Design", value: "CLO 3D" },
+      { label: "Rigging", value: "Maya" },
+      { label: "Texturing", value: "Substance Painter" },
+      { label: "Render", value: "Unreal Engine" }
+    ],
+    finalImages: ["final1.jpg", "final2.jpg"],
+    devImages: ["dev1.jpg", "dev2.jpg"]
+  },
+  nb: {
+    title: "The New Face for NVIDIA Omniverse",
+    role: "Garment Asset Manager",
+    medium: "Interactive Showroom",
+    link: "https://example.com/nvidia",
+    tools: [
+      { label: "Design", value: "CLO 3D" },
+      { label: "Rigging", value: "Maya" },
+      { label: "Texturing", value: "Substance Painter" },
+      { label: "Render", value: "Unreal Engine" }
+    ],
+    finalImages: ["final1.jpg", "final2.jpg"],
+    devImages: ["dev1.jpg", "dev2.jpg"]
+  }
+};
+
+
+function populateOverlay(garmentKey) {
+
+  const data = garmentOverlayData[garmentKey];
+
+  // Update link and text
+  const titleLink = document.getElementById('title-link');
+
+  titleLink.href = data.link;
+  titleLink.textContent = `Project: ${data.title} →`;
+
+  // Show overlay
+  const overlay = document.getElementById('overlay');
+  overlay.classList.remove('hidden');
+  overlay.classList.add('show');
+}
+
+
+
+
 //CLICK EVENT
 window.addEventListener('click', (event) => {
     raycaster.setFromCamera(mouse, camera);
@@ -298,6 +393,9 @@ function replaceAvatar(garment, posedAvatarUrl) {
   }
 
   const garmentName = garment.name?.toLowerCase() || '';
+
+  updateOverlay(garmentName);
+
   const posedKey = Object.keys(garmentToPosedAvatarMap).find(key =>
     garmentName.includes(key) || key.includes(garmentName)
   );
@@ -330,39 +428,84 @@ function replaceAvatar(garment, posedAvatarUrl) {
 
   scene.add(newAvatar);
 
-  // Smoothly move the camera and update orbit target
-gsap.to(camera.position, {
-  x: 0,
-  y: 0,
-  z: 3,
-  duration: 1.5,
-  ease: "power2.out",
-    onUpdate: () => controls.update() 
+  // Animate camera first
+  gsap.to(camera.position, {
+    x: 0,
+    y: 0,
+    z: 3,
+    duration: 1.5,
+    ease: "power2.out",
+    onUpdate: () => controls.update()
+  });
 
-});
+  // Then update controls and show overlay
+  gsap.to(controls.target, {
+    x: 0,
+    y: 0.18,
+    z: 0,
+    duration: 1.5,
+    ease: "power2.out",
+    onUpdate: () => controls.update(),
+    onComplete: () => {
+      // Lock camera to zoom/rotate only
+      controls.enablePan = false;
+      controls.enableZoom = true;
+      controls.enableRotate = true;
+      controls.minDistance = 1.5;
+      controls.maxDistance = 5;
+      controls.update();
 
-gsap.to(controls.target, {
-  x: 0,
-  y: 0.18,
-  z: 0,
-  duration: 1.5,
-  ease: "power2.out",
-  onUpdate: () => controls.update()
-});
+      // Reveal overlay
+      const overlay = document.getElementById("overlay");
+overlay.classList.add("show");
+document.getElementById("overlay").classList.add("show");
+
+    }
+  });
+}
+
+function updateOverlay(garmentNameRaw) {
+  const garmentName = garmentNameRaw.replace('_draco', '').toLowerCase();
+  const data = garmentOverlayData[garmentName];
 
 
-// Lock camera to orbit/zoom mode and disable panning
-controls.enablePan = false;
-controls.enableZoom = true;
-controls.enableRotate = true;
+  // Update link
+  const linkEl = document.querySelector('.overlay-link-box a');
+  if (linkEl) {
+    linkEl.href = data.link;
+    linkEl.textContent = `Project: ${data.title} →`;
+  }
 
-controls.minDistance = 1.5;
-controls.maxDistance = 5;
+  // Update role and medium
+  const leftEl = document.querySelector('.overlay-left');
+  if (leftEl) {
+    leftEl.innerHTML = `
+      <p><strong>Role:</strong> ${data.role}</p>
+      <p><strong>Medium:</strong> ${data.medium}</p>
+      <div class="final-stills">
+        ${data.finalImages.map(src => `<img src="${src}" alt="Final Still">`).join('')}
+      </div>
+    `;
+  }
 
-controls.update();
+  // Update tools and dev graphics
+  const rightEl = document.querySelector('.overlay-right');
+  if (rightEl) {
+    rightEl.innerHTML = `
+      <h3>Tools</h3>
+      <ul>
+        ${data.tools.map(tool => `<li><em>${tool.label}:</em> ${tool.value}</li>`).join('')}
+      </ul>
+      <div class="dev-graphics">
+        ${data.devImages.map(src => `<img src="${src}" alt="Dev Image">`).join('')}
+      </div>
+    `;
+  }
 
-
-
+  // Show overlay
+  const overlay = document.getElementById("overlay");
+  overlay.classList.remove("hidden");
+  overlay.classList.add("show");
 }
 
 
@@ -1183,7 +1326,7 @@ function dissolveMesh(mesh, duration = 3000, targetCenter = new THREE.Vector3(0,
   originalGeometry.setAttribute('aAlpha', new THREE.BufferAttribute(alphaArray, 1));
 
   // 🎯 Generate 5 target clusters near the avatar
-  const clusters = Array.from({ length: 7 }, () =>
+  const clusters = Array.from({ length: 9 }, () =>     //length = how many garments will spawn
     targetCenter.clone().add(new THREE.Vector3(
       (Math.random() - 0.5) * 3,
       (Math.random() - 0.5) * 3,

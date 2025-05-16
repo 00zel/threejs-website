@@ -1,11 +1,156 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>zel3D</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>zel3D</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      height: 100%;
+    }
+
+    canvas {
+      display: block;
+    }
+
+    #overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 1s ease;
+      z-index: 10;
+    }
+
+
+    .overlay-left,
+    .overlay-right {
+      position: absolute;
+      width: 30%;
+      color: white;
+      font-family: sans-serif;
+      font-size: 24px;
+    }
+
+     .final-stills img,
+.dev-graphics img {
+  pointer-events: none !important;
+   width: 48%;
+  border-radius: 10px;
+  margin: 5px;
+}
+
+    .overlay-left {
+      top: 10%;   
+      left: 5%;
+      text-align: left;
+    }
+
+    .overlay-right {
+      top: 60%;
+      right: 5%;
+      text-align: right;
+    }
+
+    .overlay-link {
+      margin-bottom: 1rem;
+      pointer-events: auto;
+    }
+
+    .overlay-link a {
+      color: #00ccff;
+      font-size: 24px;
+      text-decoration: underline;
+      background: rgba(0, 0, 0, 0);
+      padding: 6px 10px;
+      border-radius: 6px;
+    }
+
+    #overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#overlay.show {
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 0.5s ease;
+}
+
+
+    .final-stills img,
+    .dev-graphics img {
+      width: 48%;
+      border-radius: 10px;
+      margin: 5px;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    ul li {
+      margin: 0.3rem 0;
+    }
+  </style>
 </head>
 <body>
-    <script type="module" src="/src/main.js"></script>
+  <script type="module" src="/src/main.js"></script>
+
+<div id="overlay" class="hidden">
+  <!-- Title: Clickable link box -->
+  <div id="title-overlay" style="
+    position: absolute;
+    top: 5%;
+    left: 5%;
+    pointer-events: auto;
+    z-index: 20;
+  ">
+  <a id="title-link" href="#" target="_blank" style="
+        color: #b6e8f4;
+      font-size: 24px;
+      text-decoration: underline;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 6px 10px;
+      border-radius: 6px;
+    ">
+     Project Title →
+    </a>
+  </div>
+  
+  <!-- Left: Role, Medium, Stills -->
+  <div class="overlay-left">
+    <p><strong>Role:</strong> Garment Asset Manager</p>
+    <p><strong>Medium:</strong> Interactive Showroom</p>
+    <div class="final-stills">
+      <img src="final1.jpg" alt="Final 1" draggable="false">
+      <img src="final2.jpg" alt="Final 2" draggable="false">
+    </div>
+  </div>
+
+  <!-- Right: Tools -->
+  <div class="overlay-right">
+    <h3>Tools</h3>
+    <ul>
+      <li><em>Design:</em> CLO 3D</li>
+      <li><em>Rigging:</em> Maya</li>
+      <li><em>Texturing:</em> Substance Painter</li>
+      <li><em>Render:</em> Unreal Engine</li>
+    </ul>
+    <div class="dev-graphics">
+      <img src="dev1.jpg" alt="Dev 1" draggable="false">
+      <img src="dev2.jpg" alt="Dev 2" draggable="false">
+    </div>
+  </div>
+</div>
+
 </body>
-</html> 
+</html>
