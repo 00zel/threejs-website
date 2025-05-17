@@ -5,6 +5,35 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>zel3D</title>
   <style>
+
+@font-face {
+  font-family: 'Dreamer';
+  src: url('./fonts/Dreamer.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Zine';
+  src: url('./fonts/Zine.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+}
+
+
+.label {
+  font-family: 'Dreamer', sans-serif;
+  font-weight: normal;
+  font-style: normal;
+}
+
+.info {
+  font-family: 'Zine', serif;
+  font-weight: normal;
+  font-style: normal;
+}
+
+
     html, body {
       margin: 0;
       padding: 0;
@@ -34,15 +63,15 @@
       position: absolute;
       width: 30%;
       color: white;
-      font-family: sans-serif;
-      font-size: 24px;
+     font-family: 'Dreamer', sans-serif;
+      font-size: 36px;  
     }
 
      .final-stills img,
 .dev-graphics img {
   pointer-events: none !important;
    width: 48%;
-  border-radius: 10px;
+  border-radius: 0px;
   margin: 5px;
 }
 
@@ -53,7 +82,7 @@
     }
 
     .overlay-right {
-      top: 60%;
+      top: 10%;
       right: 5%;
       text-align: right;
     }
@@ -65,12 +94,37 @@
 
     .overlay-link a {
       color: #00ccff;
-      font-size: 24px;
-      text-decoration: underline;
+      font-size: 36px;
       background: rgba(0, 0, 0, 0);
       padding: 6px 10px;
-      border-radius: 6px;
-    }
+      border-radius: 0px; }
+
+      #title-link {
+  color: #b6e8f4;
+  font-size: 36px; 
+  text-decoration: none;
+font-family: 'Dreamer', sans-serif;
+  font-weight: normal;
+  font-style: normal;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 6px 10px;
+  border-radius: 0px;
+}
+    
+@keyframes rainbowFlash {
+  0% { color: rgb(255, 81, 81); }
+  14% { color: orange; }
+  28% { color: rgb(255, 255, 124); }
+  42% { color: rgb(109, 255, 109); }
+  57% { color: rgb(114, 114, 255); }
+  71% { color: rgb(204, 132, 255); }
+  85% { color: violet; }
+  100% { color: rgb(255, 123, 123); }
+}
+
+#title-link:hover {
+  animation: rainbowFlash 1s infinite;
+}
 
     #overlay.hidden {
   opacity: 0;
@@ -87,7 +141,7 @@
     .final-stills img,
     .dev-graphics img {
       width: 48%;
-      border-radius: 10px;
+      border-radius: 0px;
       margin: 5px;
     }
 
@@ -100,6 +154,12 @@
     ul li {
       margin: 0.3rem 0;
     }
+
+.fancy {
+  font-feature-settings: 'ss01' 1;
+  font-variant-alternates: stylistic(ss01);
+}
+
   </style>
 </head>
 <body>
@@ -114,27 +174,20 @@
     pointer-events: auto;
     z-index: 20;
   ">
-  <a id="title-link" href="#" target="_blank" style="
-        color: #b6e8f4;
-      font-size: 24px;
-      text-decoration: underline;
-      background: rgba(0, 0, 0, 0.3);
-      padding: 6px 10px;
-      border-radius: 6px;
-    ">
-     Project Title →
-    </a>
+<a id="title-link" href="#" target="_blank"></a>
+
   </div>
   
   <!-- Left: Role, Medium, Stills -->
-  <div class="overlay-left">
-    <p><strong>Role:</strong> Garment Asset Manager</p>
-    <p><strong>Medium:</strong> Interactive Showroom</p>
-    <div class="final-stills">
-      <img src="final1.jpg" alt="Final 1" draggable="false">
-      <img src="final2.jpg" alt="Final 2" draggable="false">
-    </div>
+<div class="overlay-left">
+<p><span>Role:</span> <span class="fancy">Garment Asset Manager</span></p>
+<p><span>Medium:</span> <span class="fancy">Interactive Showroom</span></p>
+  <div class="final-stills">
+    <img src="final1.jpg" alt="Final 1" draggable="false">
+    <img src="final2.jpg" alt="Final 2" draggable="false">
   </div>
+</div>
+
 
   <!-- Right: Tools -->
   <div class="overlay-right">

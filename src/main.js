@@ -209,7 +209,7 @@ const garmentOverlayData = {
     title: "Harper Collective X MCM",
     role: "Garment Design",
     medium: "Fashion Film",
-    link: "https://thenewface.io/harper-collective-store/",
+    link: "https://youtu.be/TWSm285aVpk?si=6vZ_Ce3supbNXw4-",
     tools: [
       { label: "Design & Creation", value: "CLO 3D" },
       { label: "Detailing", value: "ZBrush" },
@@ -217,29 +217,31 @@ const garmentOverlayData = {
       { label: "Texturing", value: "Substance Painter" },
       { label: "Rendering", value: "Unreal Engine" }
     ],
-    finalImages: ["final1.jpg", "final2.jpg"],
-    devImages: ["dev1.jpg", "dev2.jpg"]
+    finalImages: ["MCM3.png", "MCM2.png", "MCM1.png"],
+    devImages: ["MCM_Wireframe.png", "MCM_Pattern.png"]
   },
   jumpsuit: {
-    title: "Dreamscape Flightwear",
-    role: "3D Fashion Designer",
-    medium: "Immersive Lookbook",
-    link: "https://example.com/dreamscape",
+    title: "Holly Herndon - Jolene feat. Holly +",
+    role: "Garment Design",
+    medium: "Music Video",
+    link: "https://youtu.be/kPAEMUzDxuo?si=1ld34nq8e_OGMHiq",
     tools: [
-      { label: "Design", value: "CLO 3D" },
-      { label: "Render", value: "Blender Eevee" }
+      { label: "Design & Creation", value: "CLO 3D" },
+      { label: "Rigging", value: "Autodesk Maya" },
+      { label: "Texturing", value: "Substance Painter" },
+      { label: "Rendering", value: "Unreal Engine" }
     ],
     finalImages: ["jumpsuit_final1.jpg", "jumpsuit_final2.jpg"],
     devImages: ["jumpsuit_dev1.jpg", "jumpsuit_dev2.jpg"]
   },
   charam: {
-    title: "The New Face for NVIDIA Omniverse",
-    role: "Garment Asset Manager",
+    title: "Harper Collective X MCM Virtual Flagship Store",
+    role: "Garment Design & Animation",
     medium: "Interactive Showroom",
-    link: "https://example.com/nvidia",
+    link: "https://thenewface.io/harper-collective-store/",
     tools: [
-      { label: "Design", value: "CLO 3D" },
-      { label: "Rigging", value: "Maya" },
+      { label: "Design & Animation", value: "CLO 3D" },
+      { label: "Detailing", value: "ZBrush" },
       { label: "Texturing", value: "Substance Painter" },
       { label: "Render", value: "Unreal Engine" }
     ],
@@ -247,27 +249,27 @@ const garmentOverlayData = {
     devImages: ["dev1.jpg", "dev2.jpg"]
   },
   domi: {
-    title: "The New Face for NVIDIA Omniverse",
-    role: "Garment Asset Manager",
-    medium: "Interactive Showroom",
-    link: "https://example.com/nvidia",
+    title: "Dominique Castelano - Personal Mythologies",
+    role: "Garment Design & Animation",
+    medium: "Promotional Video",
+    link: "https://vimeo.com/1043745489",
     tools: [
-      { label: "Design", value: "CLO 3D" },
-      { label: "Rigging", value: "Maya" },
-      { label: "Texturing", value: "Substance Painter" },
+      { label: "Design & Creation", value: "CLO 3D" },
+      { label: "Rigging", value: "Autodesk Maya" },
+      { label: "Texturing", value: "Substance Painter, Unreal Engine" },
       { label: "Render", value: "Unreal Engine" }
     ],
     finalImages: ["final1.jpg", "final2.jpg"],
     devImages: ["dev1.jpg", "dev2.jpg"]
   },
   nb: {
-    title: "The New Face for NVIDIA Omniverse",
+    title: "New Balance X Coco",
     role: "Garment Asset Manager",
     medium: "Interactive Showroom",
-    link: "https://example.com/nvidia",
     tools: [
-      { label: "Design", value: "CLO 3D" },
-      { label: "Rigging", value: "Maya" },
+      { label: "Creation & Animation", value: "CLO 3D" },
+      { label: "Detailing", value: "ZBrush" },
+      { label: "Rigging", value: "Autodesk Maya" },
       { label: "Texturing", value: "Substance Painter" },
       { label: "Render", value: "Unreal Engine" }
     ],
@@ -279,18 +281,44 @@ const garmentOverlayData = {
 
 function populateOverlay(garmentKey) {
 
+
+
+
   const data = garmentOverlayData[garmentKey];
 
   // Update link and text
-  const titleLink = document.getElementById('title-link');
+ const titleOverlay = document.getElementById('title-overlay');
+let titleLink = document.getElementById('title-link');
+
+if (data.link && data.link.trim() !== "") {
+  // Ensure it's still an <a>
+  if (titleLink.tagName.toLowerCase() !== 'a') {
+    const newLink = document.createElement('a');
+    newLink.id = 'title-link';
+    newLink.target = '_blank';
+    titleOverlay.replaceChild(newLink, titleLink);
+    titleLink = newLink;
+  }
 
   titleLink.href = data.link;
-  titleLink.textContent = `Project: ${data.title} →`;
+  titleLink.textContent = `Project: ${data.title}`;
+  titleLink.classList.remove('inactive-link');
+} else {
+  // Replace <a> with <span> to kill link behavior
+  const span = document.createElement('span');
+  span.id = 'title-link';
+  span.textContent = `Project: ${data.title}`;
+  span.className = 'inactive-link';
+  titleOverlay.replaceChild(span, titleLink);
+}
+
 
   // Show overlay
   const overlay = document.getElementById('overlay');
   overlay.classList.remove('hidden');
   overlay.classList.add('show');
+
+
 }
 
 
@@ -401,10 +429,6 @@ function replaceAvatar(garment, posedAvatarUrl) {
   );
 
   const avatar = posedAvatars[posedKey];
-  if (!avatar) {
-    console.warn("❌ Avatar not found in cache:", posedKey);
-    return;
-  }
 
   const newAvatar = avatar.clone(true);
   processPBRMaterials(newAvatar);
@@ -468,38 +492,54 @@ function updateOverlay(garmentNameRaw) {
   const garmentName = garmentNameRaw.replace('_draco', '').toLowerCase();
   const data = garmentOverlayData[garmentName];
 
-
   // Update link
-  const linkEl = document.querySelector('.overlay-link-box a');
-  if (linkEl) {
-    linkEl.href = data.link;
-    linkEl.textContent = `Project: ${data.title} →`;
-  }
+const linkEl = document.getElementById('title-link');
+
+if (data.link && data.link.trim() !== "") {
+  linkEl.href = data.link;
+  linkEl.target = '_blank';
+} else {
+  linkEl.removeAttribute('href');
+  linkEl.removeAttribute('target');
+  linkEl.style.pointerEvents = 'none';
+  linkEl.style.opacity = '0.5';
+}
+
+linkEl.innerHTML = `
+  <span class="label">Project:</span> <span class="info">${data.title}</span>
+`;
+
+
 
   // Update role and medium
   const leftEl = document.querySelector('.overlay-left');
   if (leftEl) {
-    leftEl.innerHTML = `
-      <p><strong>Role:</strong> ${data.role}</p>
-      <p><strong>Medium:</strong> ${data.medium}</p>
-      <div class="final-stills">
-        ${data.finalImages.map(src => `<img src="${src}" alt="Final Still">`).join('')}
-      </div>
-    `;
+leftEl.innerHTML = `
+  <p><span class="label">Role:</span> <span class="info">${data.role}</span></p>
+  <p><span class="label">Medium:</span> <span class="info">${data.medium}</span></p>
+  <div class="final-stills">
+    ${data.finalImages.map(src => `<img src="${src}" alt="Final Still">`).join('')}
+  </div>
+`;
+
   }
 
   // Update tools and dev graphics
   const rightEl = document.querySelector('.overlay-right');
   if (rightEl) {
-    rightEl.innerHTML = `
-      <h3>Tools</h3>
-      <ul>
-        ${data.tools.map(tool => `<li><em>${tool.label}:</em> ${tool.value}</li>`).join('')}
-      </ul>
-      <div class="dev-graphics">
-        ${data.devImages.map(src => `<img src="${src}" alt="Dev Image">`).join('')}
-      </div>
-    `;
+rightEl.innerHTML = `
+  <div class="dev-graphics">
+    ${data.devImages.map(src => `<img src="${src}" alt="Dev Image">`).join('')}
+  </div>
+  <h2><span class="label">Tools :</span></h2>
+  <ul>
+    ${data.tools.map(tool => `
+      <li><span class="label">${tool.label}:</span> <span class="info">${tool.value}</span></li>
+    `).join('')}
+  </ul>
+`;
+
+
   }
 
   // Show overlay
