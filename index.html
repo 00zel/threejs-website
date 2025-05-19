@@ -4,13 +4,28 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>zel3D</title>
+
+  <link rel="preload" href="./fonts/Dreamer.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="./fonts/Zine.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+
   <style>
+html.fonts-loading {
+  visibility: hidden;
+}
+
+html.fonts-loaded {
+  visibility: visible;
+}
+
+    
 
 @font-face {
   font-family: 'Dreamer';
   src: url('./fonts/Dreamer.woff2') format('woff2');
   font-weight: normal;
   font-style: normal;
+  font-display: swap;
 }
 
 @font-face {
@@ -24,7 +39,6 @@
 .label {
   font-family: 'Dreamer', sans-serif;
   font-weight: normal;
-  font-style: normal;
 }
 
 .info {
@@ -43,6 +57,8 @@
 
     canvas {
       display: block;
+    pointer-events: auto;
+
     }
 
     #overlay {
@@ -66,15 +82,6 @@
      font-family: 'Dreamer', sans-serif;
       font-size: 36px;  
     }
-
-     .final-stills img,
-.dev-graphics img {
-  pointer-events: none !important;
-   width: 48%;
-  border-radius: 0px;
-  margin: 5px;
-}
-
     .overlay-left {
       top: 10%;   
       left: 5%;
@@ -82,7 +89,7 @@
     }
 
     .overlay-right {
-      top: 10%;
+      top: 1%;
       right: 5%;
       text-align: right;
     }
@@ -100,13 +107,12 @@
       border-radius: 0px; }
 
       #title-link {
-  color: #b6e8f4;
-  font-size: 36px; 
+  color: #a8f5ff;
+  font-size: 48px; 
   text-decoration: none;
 font-family: 'Dreamer', sans-serif;
   font-weight: normal;
   font-style: normal;
-  background: rgba(0, 0, 0, 0.3);
   padding: 6px 10px;
   border-radius: 0px;
 }
@@ -138,12 +144,14 @@ font-family: 'Dreamer', sans-serif;
 }
 
 
-    .final-stills img,
-    .dev-graphics img {
-      width: 48%;
-      border-radius: 0px;
-      margin: 5px;
-    }
+ .final-stills img,
+.dev-graphics img {
+  width: 60%;
+  display: block;
+  margin: 10px 0;
+  object-fit: cover;
+  pointer-events: none;
+}
 
     ul {
       list-style: none;
@@ -163,17 +171,32 @@ font-family: 'Dreamer', sans-serif;
   </style>
 </head>
 <body>
+
+<script>
+  document.documentElement.classList.add('fonts-loading');
+  document.fonts.ready.then(() => {
+    document.documentElement.classList.remove('fonts-loading');
+    document.documentElement.classList.add('fonts-loaded');
+  });
+</script>
+
+
   <script type="module" src="/src/main.js"></script>
 
 <div id="overlay" class="hidden">
   <!-- Title: Clickable link box -->
+
+
   <div id="title-overlay" style="
-    position: absolute;
-    top: 5%;
-    left: 5%;
-    pointer-events: auto;
-    z-index: 20;
-  ">
+  position: absolute;
+  bottom: 5%;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: auto;
+  z-index: 20;
+  text-align: center;
+">
+
 <a id="title-link" href="#" target="_blank"></a>
 
   </div>

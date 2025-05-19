@@ -99,7 +99,11 @@ const cameraStartLookAt = new THREE.Vector3(0, 0, 0);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
 
-
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
 
 // CAMERA SETUP 
 camera.position.set(0, 1.2, 6);  // Position camera at (0, 1.2, 6), making it look at the center of the scene
@@ -1053,6 +1057,7 @@ function animateEmissiveBurst(material, duration = 400, peak = 25) {
           const cursorUrl = garmentToCursorMap[garmentName];
           if (cursorUrl) {
             document.body.style.cursor = `url('${cursorUrl}') 16 16, auto`;
+
           }
       
           const posedAvatarUrl = garmentToPosedAvatarMap[garmentName];
@@ -1500,4 +1505,6 @@ gl_FragColor = vec4(uColor * glow, vAlpha * glow);
   }
 }
 
-  
+  renderer.domElement.addEventListener('wheel', () => {
+  console.log('🎯 canvas received scroll');
+});
