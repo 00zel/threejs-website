@@ -18,9 +18,10 @@ html.fonts-loaded {
   visibility: visible;
 }
 
-    :root {
-  --text-font-size: clamp(16px, 3vw, 40px);
+:root {
+  --text-font-size: clamp(32px, 5vmin, 48px);
 }
+
 
 
 @font-face {
@@ -37,6 +38,49 @@ html.fonts-loaded {
   font-weight: normal;
   font-style: normal;
 }
+
+@font-face {
+  font-family: 'ZineTM';
+  src: url('fonts/ZineTM.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Tension';
+  src: url('fonts/Tension.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Galaxyface';
+  src: url('fonts/Galaxyface.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Troglodyte';
+  src: url('fonts/Troglodyte.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Cardinal';
+  src: url('fonts/Cardinal.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+}
+
+
+@font-face {
+  font-family: 'BaroqueScript';
+  src: url('fonts/BaroqueScript.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+}
+
 
 
 .label {
@@ -83,7 +127,7 @@ html.fonts-loaded {
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  gap: 1.5rem;
+  gap: 0.5rem; /* Reduce gap between children */
   color: white;
   font-family: 'Dreamer', sans-serif;
   font-size: var(--text-font-size);
@@ -102,8 +146,9 @@ html.fonts-loaded {
   top: 0%;
   right: 5%;
   text-align: left;
-  align-items: flex-end;
+  align-items: flex-start;
 padding-bottom: 12vh;
+padding-top: 10vh;
 }
 
 .overlay-left p,
@@ -130,7 +175,7 @@ padding-bottom: 12vh;
 
 
       .overlay-content {
-  max-height: calc(100vh - 20vh); /* Leaves space for title */
+  max-height: calc(100vh - 10vh); /* Leaves space for title */
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -150,15 +195,27 @@ padding-bottom: 12vh;
 
 #title-overlay {
   position: fixed;
-  bottom: 4%;
+  bottom: 30px;
   left: 50%;
   transform: translateX(-50%);
-  width: 90vw;
-  text-align: center;
-  pointer-events: auto;
-  z-index: 20;
+  font-size: 28px;
+  z-index: 100;
+  color: white;
 }
 
+#title-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.project-label {
+  font-family: 'Dreamer', sans-serif;
+  margin-right: 10px;
+}
+#cycling-title {
+  font-family: 'Zine', sans-serif;
+  transition: font-family 0.4s ease;
+}
 
     
 @keyframes rainbowFlash {
@@ -187,15 +244,61 @@ padding-bottom: 12vh;
   transition: opacity 0.5s ease;
 }
 
-
- .final-stills img,
-.dev-graphics img {
-  width: 60%;
-  display: block;
-  margin: 10px 0;
-  object-fit: cover;
-  pointer-events: none;
+.final-stills,
+.dev-graphics {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: flex-start;
 }
+
+.final-stills img,
+.dev-graphics img {
+  width: 100%;            /* fill the column */
+  max-height: 35vh;       /* let it grow taller, but not take over */
+  height: auto;
+  object-fit: contain;    /* don’t crop — scale within bounds */
+  display: block;
+  margin-bottom: 1rem;
+  pointer-events: auto;
+  filter: grayscale(100%);
+  transition: filter 0.3s ease, drop-shadow 0.3s ease;
+}
+
+.final-stills img:hover,
+.dev-graphics img:hover {
+  filter: grayscale(0%) drop-shadow(0 0 20px var(--glow-color));
+}
+
+
+
+
+.dev-graphics {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: nowrap;             
+  gap: 1rem;
+}
+
+.dev-graphics img {
+  flex: 1 1 0;                    /* let images scale */
+  max-width: 50%;                /* never wider than half the container */
+  min-width: 0;                  /* allow shrinking */
+  height: auto;
+  max-height: 30vh;
+  object-fit: contain;
+  display: block;
+}
+
+.tools-label {
+  margin: 0;
+  padding: 0;
+  font-weight: normal;
+  font-size: calc(var(--text-font-size) * 1.2); /* 20% larger */
+}
+
+
+
 
     ul {
       list-style: none;
@@ -212,8 +315,15 @@ padding-bottom: 12vh;
   font-variant-alternates: stylistic(ss01);
 }
 
+.dev-graphics {
+  margin-bottom: 0; 
+}
 
 
+.image-expanded-clone {
+  pointer-events: auto;
+  border-radius: 0;
+}
 
 
   </style>
@@ -234,7 +344,10 @@ padding-bottom: 12vh;
 <div id="overlay" class="hidden">
   <!-- Title: Clickable link box -->
 <div id="title-overlay">
-  <a id="title-link" href="#" target="_blank"></a>
+  <a id="title-link" href="#" target="_blank">
+      <span class="project-label">Project:</span>
+      <span id="cycling-title">Untitled</span>
+  </a>
 </div>
 
 
@@ -259,7 +372,7 @@ padding-bottom: 12vh;
       <img src="dev1.jpg" alt="Dev 1" draggable="false">
       <img src="dev2.jpg" alt="Dev 2" draggable="false">
     </div>
-    <h3>Tools</h3>
+<p class="tools-label">Tools:</p>
     <ul>
       <li><em>Design:</em> CLO 3D</li>
       <li><em>Rigging:</em> Maya</li>

@@ -83,6 +83,11 @@ let isLoadingPosedAvatar = false;
 let garmentsVisible = true;
 let refreshArrow;
 
+const BASE_WIDTH = 1920;
+const BASE_HEIGHT = 1080;
+const BASE_SCALE = 1; // original size
+
+
 //STATS GUI 
 const stats = new Stats();
 // Optionally, set which panel to show:
@@ -102,11 +107,14 @@ const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerH
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
-composer.setSize(window.innerWidth * 0.75, window.innerHeight * 0.75);
+  composer.setSize(window.innerWidth, window.innerHeight); // scale whole frame
+  renderer.setSize(window.innerWidth, window.innerHeight); // also update renderer size
+  scaleSceneToWindow(); // 🔥 call the scene scaler
 });
 
+
 // CAMERA SETUP 
-camera.position.set(0, 1.2, 6);  // Position camera at (0, 1.2, 6), making it look at the center of the scene
+camera.position.set(0, 1.2, 4);  // Position camera at (0, 1.2, 6), making it look at the center of the scene
 camera.lookAt(new THREE.Vector3(0, 0, 0));  // Make sure it looks at the origin (0, 0, 0)
 camera.layers.enable(BLOOM_LAYER); // Layer 1
 
@@ -221,9 +229,12 @@ const garmentOverlayData = {
       { label: "Texturing", value: "Substance Painter" },
       { label: "Rendering", value: "Unreal Engine" }
     ],
-    finalImages: ["MCM3.png", "MCM2.png", "MCM1.png"],
-    devImages: ["MCM_Wireframe.png", "MCM_Pattern.png"]
+    finalImages: ["MCM3.png", "MCM2.png"],
+    devImages: ["MCM_Wireframe.png", "MCM_Pattern.png"],
+      glowColor: "rgb(255, 255, 255)" // 🧊 cyan
+
   },
+  
   jumpsuit: {
     title: "Holly Herndon - Jolene feat. Holly +",
     role: "Garment Design",
@@ -236,8 +247,11 @@ const garmentOverlayData = {
       { label: "Rendering", value: "Unreal Engine" }
     ],
     finalImages: ["jumpsuit_final1.jpg", "jumpsuit_final2.jpg"],
-    devImages: ["jumpsuit_dev1.jpg", "jumpsuit_dev2.jpg"]
+    devImages: ["jumpsuit_dev1.jpg", "jumpsuit_dev2.jpg"], 
+          glowColor: "rgba(118, 234, 255, 0.9)" // 🧊 cyan
+
   },
+
   charam: {
     title: "Harper Collective X MCM Virtual Store",
     role: "Garment Design & Animation",
@@ -250,8 +264,11 @@ const garmentOverlayData = {
       { label: "Render", value: "Unreal Engine" }
     ],
     finalImages: ["final1.jpg", "final2.jpg"],
-    devImages: ["dev1.jpg", "dev2.jpg"]
+    devImages: ["dev1.jpg", "dev2.jpg"], 
+          glowColor: "rgba(118, 234, 255, 0.9)" // 🧊 cyan
+
   },
+
   domi: {
     title: "Dominique Castelano - Personal Mythologies",
     role: "Garment Design & Animation",
@@ -264,8 +281,11 @@ const garmentOverlayData = {
       { label: "Render", value: "Unreal Engine" }
     ],
     finalImages: ["final1.jpg", "final2.jpg"],
-    devImages: ["dev1.jpg", "dev2.jpg"]
+    devImages: ["dev1.jpg", "dev2.jpg"], 
+          glowColor: "rgba(118, 234, 255, 0.9)" // 🧊 cyan
+
   },
+
   nb: {
     title: "New Balance X Coco",
     role: "Garment Asset Manager",
@@ -278,7 +298,9 @@ const garmentOverlayData = {
       { label: "Render", value: "Unreal Engine" }
     ],
     finalImages: ["final1.jpg", "final2.jpg"],
-    devImages: ["dev1.jpg", "dev2.jpg"]
+    devImages: ["dev1.jpg", "dev2.jpg"], 
+          glowColor: "rgba(118, 234, 255, 0.9)" // 🧊 cyan
+
   }
 };
 
@@ -324,6 +346,82 @@ if (data.link && data.link.trim() !== "") {
 
 
 }
+
+
+let expandedClone = null;
+let originalRect = null;
+
+document.addEventListener('click', (e) => {
+  const isExpanded = expandedClone !== null;
+
+  // ✅ Case: click to collapse the expanded image
+  if (isExpanded && expandedClone.contains(e.target)) {
+    Object.assign(expandedClone.style, {
+      top: `${originalRect.top}px`,
+      left: `${originalRect.left}px`,
+      width: `${originalRect.width}px`,
+      height: `${originalRect.height}px`,
+    });
+
+    document.body.style.overflow = '';
+    
+    // Wait for transition to finish, then remove
+    setTimeout(() => {
+      expandedClone.remove();
+      expandedClone = null;
+      originalRect = null;
+    }, 600);
+
+    return;
+  }
+
+  // ✅ Case: click a new image to expand
+  const original = e.target.closest('.final-stills img, .dev-graphics img');
+  if (!original) return;
+
+  // Close any existing expanded image first
+  if (expandedClone) {
+    expandedClone.remove();
+    expandedClone = null;
+    originalRect = null;
+  }
+
+  // Get original size/position
+  originalRect = original.getBoundingClientRect();
+
+  // Clone and style
+  const clone = original.cloneNode(true);
+  clone.classList.add('image-expanded-clone');
+  Object.assign(clone.style, {
+    position: 'fixed',
+    top: `${originalRect.top}px`,
+    left: `${originalRect.left}px`,
+    width: `${originalRect.width}px`,
+    height: `${originalRect.height}px`,
+    zIndex: 9999,
+    objectFit: 'contain',
+    filter: 'grayscale(0%) drop-shadow(0 0 20px var(--glow-color))',
+   // filter: 'grayscale(0%) drop-shadow(0 0 0 rgba(0, 0, 0, 0))',  - makes the glow dissappear when it gets bigger 
+
+    transition: 'all 0.6s ease',
+    cursor: 'zoom-out',
+  });
+
+  document.body.appendChild(clone);
+  document.body.style.overflow = 'hidden';
+
+  // Animate to fullscreen
+  requestAnimationFrame(() => {
+    Object.assign(clone.style, {
+      top: '6vh',
+      left: '6vw',
+      width: '86vw',
+      height: '86vh',     // size of image
+    });
+  });
+
+  expandedClone = clone;
+});
 
 
 
@@ -517,10 +615,13 @@ if (data.link && data.link.trim() !== "") {
 }
 
 linkEl.innerHTML = `
-  <span class="label">Project:</span> <span class="info">${data.title}</span>
+  <span class="project-label">Project:</span>
+  <span id="cycling-title">${data.title}</span> →
 `;
 
-
+cyclingTitle = document.getElementById('cycling-title');
+cyclingTitle.addEventListener('mouseenter', startFontCycle);
+cyclingTitle.addEventListener('mouseleave', stopFontCycle);
 
   // Update role and medium
   const leftEl = document.querySelector('.overlay-left');
@@ -535,6 +636,7 @@ leftEl.innerHTML = `
   </div>
 `;
 
+document.documentElement.style.setProperty('--glow-color', data.glowColor || 'rgba(173, 255, 255, 0.8)');
 
 
   }
@@ -546,13 +648,14 @@ rightEl.innerHTML = `
   <div class="dev-graphics">
     ${data.devImages.map(src => `<img src="${src}" alt="Dev Image">`).join('')}
   </div>
-  <h2><span class="label">Tools :</span></h2>
+  <p class="tools-label">Tools:</p>
   <ul>
     ${data.tools.map(tool => `
       <li><span class="label">${tool.label}:</span> <span class="info">${tool.value}</span></li>
     `).join('')}
   </ul>
 `;
+
 
 
   }
@@ -564,6 +667,59 @@ if (!overlay.classList.contains("show")) {
   overlay.classList.add("show");
 }
 }
+
+let cyclingTitle = document.getElementById('cycling-title');
+
+const fonts = [
+  'Tension',
+  'Troglodyte',
+  'Galaxyface',
+  'Cardinal',
+  'BaroqueScript'
+];
+
+let fontInterval = null;
+let hoverStartTime = null;
+
+function getSpeedFromHoverDuration(duration) {
+  // Duration in ms → return interval in ms (lower = faster)
+  // You can tweak these values to tune the chaos curve
+  const minSpeed = 10;   // fastest
+  const maxSpeed = 400;  // initial slow speed
+  const rampTime = 10000; // ms to reach max chaos
+
+  const progress = Math.min(1, duration / rampTime);
+  return maxSpeed - (maxSpeed - minSpeed) * progress;
+}
+
+function startFontCycle() {
+  hoverStartTime = Date.now();
+
+  function updateFont() {
+    const elapsed = Date.now() - hoverStartTime;
+    const interval = getSpeedFromHoverDuration(elapsed);
+
+    const randomIndex = Math.floor(Math.random() * fonts.length);
+    cyclingTitle.style.fontFamily = `${fonts[randomIndex]}, sans-serif`;
+
+    fontInterval = setTimeout(updateFont, interval); // recursive chaos
+  }
+
+  updateFont(); // start first cycle
+}
+
+function stopFontCycle() {
+  clearTimeout(fontInterval);
+  fontInterval = null;
+  cyclingTitle.style.fontFamily = `'Zine', sans-serif`;
+}
+
+cyclingTitle.addEventListener('mouseenter', startFontCycle);
+cyclingTitle.addEventListener('mouseleave', stopFontCycle);
+
+
+
+
 
 
 function cleanupSceneBeforePosing() {
@@ -1295,6 +1451,15 @@ function restoreMaterial(obj) {
       delete obj.userData.originalBackground;
     }
   }
+
+
+  function scaleSceneToWindow() {
+  const scaleFactor = Math.min(window.innerWidth / BASE_WIDTH, window.innerHeight / BASE_HEIGHT);
+  const newScale = BASE_SCALE * scaleFactor;
+
+  scene.scale.set(newScale, newScale, newScale);
+}
+
   
 
   function animate() {
