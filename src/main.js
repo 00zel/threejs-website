@@ -231,6 +231,7 @@ const garmentOverlayData = {
     ],
     finalImages: ["MCM3.png", "MCM2.png"],
     devImages: ["MCM_Wireframe.png", "MCM_Pattern.png"],
+devImages2: ["Puffer_Material.png", "Skirt_7.png"],
       glowColor: "rgb(255, 255, 255)" // 🧊 cyan
 
   },
@@ -246,14 +247,15 @@ const garmentOverlayData = {
       { label: "Texturing", value: "Substance Painter" },
       { label: "Rendering", value: "Unreal Engine" }
     ],
-    finalImages: ["jumpsuit_final1.jpg", "jumpsuit_final2.jpg"],
-    devImages: ["jumpsuit_dev1.jpg", "jumpsuit_dev2.jpg"], 
+    finalImages: ["Jumpsuit1.jpg", "Jumpsuit2.png"],
+    devImages: ["Jumpsuit_Wireframe.png"], 
+    devImages2: ["Jumpsuit1_Material.png", "Jumpsuit2_Material.png"],
           glowColor: "rgba(118, 234, 255, 0.9)" // 🧊 cyan
 
   },
 
   charam: {
-    title: "Harper Collective X MCM Virtual Store",
+    title: "Harper Collective X MCM",
     role: "Garment Design & Animation",
     medium: "Interactive Showroom",
     link: "https://thenewface.io/harper-collective-store/",
@@ -263,8 +265,10 @@ const garmentOverlayData = {
       { label: "Texturing", value: "Substance Painter" },
       { label: "Render", value: "Unreal Engine" }
     ],
-    finalImages: ["final1.jpg", "final2.jpg"],
-    devImages: ["dev1.jpg", "dev2.jpg"], 
+    finalImages: ["Chara1.png", "Chara2.png"],
+    devImages: ["CharaM_Wireframe.png"], 
+        devImages2: ["Chara_Materials2.png", "Chara_Materials1.png"],
+
           glowColor: "rgba(118, 234, 255, 0.9)" // 🧊 cyan
 
   },
@@ -277,11 +281,13 @@ const garmentOverlayData = {
     tools: [
       { label: "Design & Creation", value: "CLO 3D" },
       { label: "Rigging", value: "Autodesk Maya" },
-      { label: "Texturing", value: "Substance Painter, Unreal Engine" },
+      { label: "Texturing", value: "Substance Painter" },
       { label: "Render", value: "Unreal Engine" }
     ],
-    finalImages: ["final1.jpg", "final2.jpg"],
-    devImages: ["dev1.jpg", "dev2.jpg"], 
+    finalImages: ["Domi1.jpg", "Domi_Modeled1.png"],
+    devImages: ["Skirt_25.png", "Skirt_13.png", "Skirt_27.png"], 
+        devImages2: ["Skirt_25.png", "Skirt_13.png", "Skirt_27.png"],
+
           glowColor: "rgba(118, 234, 255, 0.9)" // 🧊 cyan
 
   },
@@ -297,8 +303,10 @@ const garmentOverlayData = {
       { label: "Texturing", value: "Substance Painter" },
       { label: "Render", value: "Unreal Engine" }
     ],
-    finalImages: ["final1.jpg", "final2.jpg"],
-    devImages: ["dev1.jpg", "dev2.jpg"], 
+    finalImages: ["NB1.jpeg", "NB2.jpeg"],
+    devImages: ["NB2_Wireframe.png"], 
+        devImages2: ["NB1_Materials.png", "NB2_Materials.png", "NB3_Materials.png"],
+
           glowColor: "rgba(118, 234, 255, 0.9)" // 🧊 cyan
 
   }
@@ -423,6 +431,16 @@ document.addEventListener('click', (e) => {
   expandedClone = clone;
 });
 
+
+
+function setCustomCursor(cursorUrl) {
+  const cursorStyle = `url('${cursorUrl}') 16 16, auto`;
+
+  document.documentElement.style.setProperty('cursor', cursorStyle, 'important');
+  document.body.style.setProperty('cursor', cursorStyle, 'important');
+
+
+}
 
 
 
@@ -557,6 +575,7 @@ const newAvatar = avatar.userData.cachedClone.clone(true);
 
   scene.add(newAvatar);
 
+
   // Animate camera first
   gsap.to(camera.position, {
     x: 0,
@@ -593,6 +612,16 @@ if (!overlay.classList.contains("show")) {
 
 document.getElementById("overlay").classList.add("show");
 
+console.log('🧪 Avatar loaded. Controls state:',
+  {
+    enableZoom: controls.enableZoom,
+    enableRotate: controls.enableRotate,
+    enablePan: controls.enablePan,
+    target: controls.target.clone(),
+    cameraPosition: camera.position.clone()
+  }
+);
+
     }
   });
 }
@@ -616,7 +645,7 @@ if (data.link && data.link.trim() !== "") {
 
 linkEl.innerHTML = `
   <span class="project-label">Project:</span>
-  <span id="cycling-title">${data.title}</span> →
+  <span id="cycling-title">${data.title}</span>
 `;
 
 cyclingTitle = document.getElementById('cycling-title');
@@ -643,22 +672,30 @@ document.documentElement.style.setProperty('--glow-color', data.glowColor || 'rg
 
   // Update tools and dev graphics
   const rightEl = document.querySelector('.overlay-right');
-  if (rightEl) {
-rightEl.innerHTML = `
-  <div class="dev-graphics">
-    ${data.devImages.map(src => `<img src="${src}" alt="Dev Image">`).join('')}
-  </div>
-  <p class="tools-label">Tools:</p>
-  <ul>
-    ${data.tools.map(tool => `
-      <li><span class="label">${tool.label}:</span> <span class="info">${tool.value}</span></li>
-    `).join('')}
-  </ul>
-`;
+if (rightEl) {
+  rightEl.innerHTML = `
+    <div class="dev-graphics">
+      ${data.devImages.map(src => `<img src="${src}" alt="Dev Image">`).join('')}
+    </div>
+    <p class="tools-label">Tools:</p>
+    <ul>
+      ${data.tools.map(tool => `
+        <li><span class="label">${tool.label}:</span> <span class="info">${tool.value}</span></li>
+      `).join('')}
+    </ul>
+  `;
 
-
-
+  // ⬇️ Append the second row of dev images if available
+  if (data.devImages2) {
+    const extraDevRow = document.createElement('div');
+    extraDevRow.classList.add('dev-graphics');
+    extraDevRow.innerHTML = data.devImages2
+      .map(src => `<img src="${src}" alt="Additional Dev Image">`)
+      .join('');
+    rightEl.appendChild(extraDevRow);
   }
+}
+
 
   // Show overlay
   const overlay = document.getElementById("overlay");
@@ -1217,8 +1254,20 @@ function animateEmissiveBurst(material, duration = 400, peak = 25) {
   
     const holdDuration = Date.now() - mouseDownStartTime;
   
-    if (holdDuration > SETTINGS.GLOW.ACTIVATION_HOLD) {
-      if (avatarReplaced) return;
+if (holdDuration > SETTINGS.GLOW.ACTIVATION_HOLD) {
+  const garmentName = selectedGarment.name?.trim().toLowerCase() ||
+                      selectedGarment.userData.sourceFile?.split('/').pop().split('.')[0].toLowerCase() || "";
+
+      
+const cleanedName = garmentName.replace('_draco', '');
+const cursorUrl = garmentToCursorMap[cleanedName];
+if (cursorUrl) {
+  setCustomCursor(cursorUrl);
+}
+
+  if (avatarReplaced) return;
+
+
   
       garments.forEach(({ object }) => {
         object.visible = (object === selectedGarment);
@@ -1250,9 +1299,6 @@ function animateEmissiveBurst(material, duration = 400, peak = 25) {
         }
       });
   
-      const garmentName = selectedGarment.name?.trim().toLowerCase() ||
-                          selectedGarment.userData.sourceFile?.split('/').pop().split('.')[0].toLowerCase() || "";
-  
       let glowMesh = null;
       selectedGarment.traverse(child => {
         if (child.isMesh && glowMesh === null) {
@@ -1271,15 +1317,7 @@ function animateEmissiveBurst(material, duration = 400, peak = 25) {
       const burstTimeline = gsap.timeline({
         onComplete: () => {
           selectedGarment.visible = false;
-          avatarReplaced = true;
-      
-          const cursorUrl = garmentToCursorMap[garmentName];
-          if (cursorUrl) {
-            document.body.style.cursor = `url('${cursorUrl}') 16 16, auto`;
-
-          }
-      
-const posedAvatarUrl = garmentToPosedAvatarMap[garmentName];
+          avatarReplaced = true;      
 
 // Only dissolve the first mesh we find
 let foundMesh = null;
@@ -1292,15 +1330,6 @@ selectedGarment.traverse(child => {
 if (foundMesh) {
   dissolveMesh(foundMesh);
 }
-
-
-
-    if (posedAvatarUrl) {
-  setTimeout(() => {
-    replaceAvatar(selectedGarment, posedAvatarUrl);
-  }, 250); // Slight delay after dissolve
-}
-
         }
       });
       
@@ -1460,6 +1489,8 @@ function restoreMaterial(obj) {
   scene.scale.set(newScale, newScale, newScale);
 }
 
+
+
   
 
   function animate() {
@@ -1467,6 +1498,7 @@ function restoreMaterial(obj) {
 
     requestAnimationFrame(animate);
     const delta = clock.getDelta();
+
   
     // Glow buildup while mouse is held
     if (isMouseDown && selectedGarment) {
@@ -1730,7 +1762,3 @@ function dissolveMesh(mesh, duration = 3000, targetCenter = new THREE.Vector3(0,
     geometry.attributes.aAlpha.needsUpdate = true;
   }
 }
-
-  renderer.domElement.addEventListener('wheel', () => {
-  console.log('🎯 canvas received scroll');
-});

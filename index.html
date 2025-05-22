@@ -118,6 +118,8 @@ html.fonts-loaded {
       opacity: 0;
       transition: opacity 1s ease;
       z-index: 10;
+      pointer-events: none;
+
     }
 
 .overlay-left,
@@ -131,6 +133,8 @@ html.fonts-loaded {
   color: white;
   font-family: 'Dreamer', sans-serif;
   font-size: var(--text-font-size);
+  pointer-events: auto;
+
 }
 
 .overlay-left {
@@ -240,7 +244,6 @@ padding-top: 10vh;
 
 #overlay.show {
   opacity: 1;
-  pointer-events: auto;
   transition: opacity 0.5s ease;
 }
 
@@ -294,7 +297,7 @@ padding-top: 10vh;
   margin: 0;
   padding: 0;
   font-weight: normal;
-  font-size: calc(var(--text-font-size) * 1.2); /* 20% larger */
+  font-size: calc(var(--text-font-size)); /* 20% larger */
 }
 
 
