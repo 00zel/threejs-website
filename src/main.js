@@ -109,6 +109,8 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   composer.setSize(window.innerWidth, window.innerHeight); // scale whole frame
   renderer.setSize(window.innerWidth, window.innerHeight); // also update renderer size
+  renderer.domElement.style.width = '100%';
+renderer.domElement.style.height = '100%';
   scaleSceneToWindow(); // 🔥 call the scene scaler
 });
 
