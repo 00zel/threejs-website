@@ -71,6 +71,7 @@ const garmentToCursorMap = {
     "puffer": "./puffer_cursor.png",
     "nb": "./NB_cursor.png",
     "domi": "./test.png",
+    "cb": "./CB_cursor.png"
 };
 
 const posedAvatars = {};
@@ -311,7 +312,24 @@ devImages2: ["Puffer_Material.png", "Skirt_7.png"],
 
           glowColor: "rgba(118, 234, 255, 0.9)" // 🧊 cyan
 
-  }
+  },
+
+cb: {
+  title: "Karina Dress",
+  role: "Garment Design & Creation",
+  medium: "Physical Garment",
+
+  link: "", 
+  tools: [
+    { label: "Design & Creation", value: "CLO 3D" },
+    { label: "Construction", value: "Sewing Tools" }
+    ],
+  finalImages: ["CB4.png", "CB2.png"],
+  devImages: ["CB_Wireframe.png"],
+  devImages2: ["CB3.png", "CB1.png"],
+  glowColor: "rgba(255, 222, 255, 0.9)" // pastel pink?
+}
+
 };
 
 
@@ -657,15 +675,17 @@ cyclingTitle.addEventListener('mouseleave', stopFontCycle);
   // Update role and medium
   const leftEl = document.querySelector('.overlay-left');
   if (leftEl) {
+
 leftEl.innerHTML = `
-  <div class="final-stills">
-    ${data.finalImages.map(src => `<img src="${src}" alt="Final Still">`).join('')}
-  </div>
   <div class="text-block">
     <p><span class="label">Role:</span> <span class="info">${data.role}</span></p>
     <p><span class="label">Medium:</span> <span class="info">${data.medium}</span></p>
   </div>
+  <div class="final-stills">
+    ${data.finalImages.map(src => `<img src="${src}" alt="Final Still">`).join('')}
+  </div>
 `;
+
 
 document.documentElement.style.setProperty('--glow-color', data.glowColor || 'rgba(173, 255, 255, 0.8)');
 
@@ -686,6 +706,8 @@ if (rightEl) {
       `).join('')}
     </ul>
   `;
+
+  
 
   // ⬇️ Append the second row of dev images if available
   if (data.devImages2) {
@@ -790,7 +812,8 @@ const garmentToPosedAvatarMap = {
     'charam': './Avatar_Chara_draco.glb',
     'domi': './Avatar_Domi_draco.glb',
     'puffer': './Avatar_Puffer_draco.glb',
-    'nb': './Avatar_NB_draco.glb'
+    'nb': './Avatar_NB_draco.glb',
+    'cb': './Avatar_CB_draco.glb'
 };
 
 loadAvatar();
@@ -912,7 +935,8 @@ const garmentFiles = [
     { path: './CharaM_draco.glb', offset: 1 },
     { path: './Domi_draco.glb', offset: 2 },
     { path: './Jumpsuit_draco.glb', offset: 3 },
-    { path: './NB_draco.glb', offset: 4 }
+    { path: './NB_draco.glb', offset: 4 },
+    { path: './CB_draco.glb', offset: 5 }
 ];
 
 

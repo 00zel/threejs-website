@@ -237,8 +237,11 @@ padding-top: 10vh;
   100% { color: rgb(255, 123, 123); }
 }
 
-#title-link:hover {
+#title-link:hover,
+#title-link:hover #cycling-title {
   animation: rainbowFlash 1s infinite;
+  filter: grayscale(0%) drop-shadow(0 0 20px var(--glow-color));
+  transition: filter 0.3s ease;
 }
 
     #overlay.hidden {
