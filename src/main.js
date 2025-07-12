@@ -234,7 +234,7 @@ const garmentOverlayData = {
     ],
     finalImages: ["MCM3.png", "MCM2.png"],
     devImages: ["MCM_Wireframe.png", "MCM_Pattern.png"],
-devImages2: ["Puffer_Material.png", "Skirt_7.png"],
+devImages2: ["Puffer_Material.png", "Puffer_Material2.png"],
       glowColor: "rgb(255, 255, 255)" // 🧊 cyan
 
   },
@@ -253,7 +253,7 @@ devImages2: ["Puffer_Material.png", "Skirt_7.png"],
     finalImages: ["Jumpsuit1.jpg", "Jumpsuit2.png"],
     devImages: ["Jumpsuit_Wireframe.png"], 
     devImages2: ["Jumpsuit1_Material.png", "Jumpsuit2_Material.png"],
-          glowColor: "rgba(118, 234, 255, 0.9)" // 🧊 cyan
+          glowColor: "rgb(190, 255, 170)" // green
 
   },
 
@@ -272,12 +272,12 @@ devImages2: ["Puffer_Material.png", "Skirt_7.png"],
     devImages: ["CharaM_Wireframe.png"], 
         devImages2: ["Chara_Materials2.png", "Chara_Materials1.png"],
 
-          glowColor: "rgba(118, 234, 255, 0.9)" // 🧊 cyan
+          glowColor: "rgba(251, 255, 198, 0.9)" // yellow
 
   },
 
   domi: {
-    title: "Dominique Castelano - Personal Mythologies",
+    title: "Personal Mythologies",
     role: "Garment Design & Animation",
     medium: "Promotional Video",
     link: "https://vimeo.com/1043745489",
@@ -287,9 +287,9 @@ devImages2: ["Puffer_Material.png", "Skirt_7.png"],
       { label: "Texturing", value: "Substance Painter" },
       { label: "Render", value: "Unreal Engine" }
     ],
-    finalImages: ["Domi1.jpg", "Domi_Modeled1.png"],
-    devImages: ["Skirt_25.png", "Skirt_13.png", "Skirt_27.png"], 
-        devImages2: ["Skirt_25.png", "Skirt_13.png", "Skirt_27.png"],
+    finalImages: ["Domi1.jpg", "Domi_Modeled1.png", "Domi_Modeled2.png"],
+    devImages: ["Skirt_25.png", "Skirt_13.png", "Skirt_26.png", "Skirt_7.png"], 
+        devImages2: ["Skirt.png", "Skirt_12.png", "Skirt_27.png", "Skirt_1.png"],
 
           glowColor: "rgba(118, 234, 255, 0.9)" // 🧊 cyan
 
@@ -319,7 +319,7 @@ cb: {
   role: "Garment Design & Creation",
   medium: "Physical Garment",
 
-  link: "", 
+  link: "https://www.instagram.com/p/DLXxPhWMw2C/?igsh=MXZpdHJ3bWVyNHMwZw%3D%3D", 
   tools: [
     { label: "Design & Creation", value: "CLO 3D" },
     { label: "Construction", value: "Sewing Tools" }
