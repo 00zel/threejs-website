@@ -152,6 +152,7 @@ function preloadAllPosedAvatars() {
     });
   }
   
+  
 function loadAvatar() {
     gltfLoader.load(  
         './Avatar_Base2.glb',
@@ -164,14 +165,15 @@ function loadAvatar() {
             avatar.position.set(0, -0.6, 0);
 
             // ATTACH LIGHTS TO THE AVATAR
-             const keyLight = new THREE.PointLight(0xFFFFFF, 10, 10, 2); // white
+
+            const keyLight = new THREE.PointLight(0xFFFFFF, 10, 1.3, 2); // color white, intensity 10, distance 2, decay 2
             keyLight.position.set(80, 140, 80);
             keyLight.castShadow = true;
 
-            const rimLight = new THREE.PointLight(0xFFFFFF, 5, 10, 2); // FFA0B0 purple
+            const rimLight = new THREE.PointLight(0xFFFFFF, 5, 1.3, 2); // FFA0B0 purple
             rimLight.position.set(-80, 130, -80);
 
-            const fillLight = new THREE.PointLight(0xFFFFFF, 8, 10, 2); // DCFFCB green 
+            const fillLight = new THREE.PointLight(0xFFFFFF, 8, 1.3, 2); // DCFFCB green 
             fillLight.position.set(50, 80, -50);
 
             avatar.add(keyLight, rimLight, fillLight);
@@ -181,14 +183,17 @@ function loadAvatar() {
 
 
             // Add visual helpers for debugging light positions
-        //    const keyLightHelper = new THREE.PointLightHelper(keyLight, 10, 0xff0000);
-         //   scene.add(keyLightHelper);
+       if (SETTINGS.DEBUG) {
+     const keyLightHelper = new THREE.PointLightHelper(keyLight, 10, 0xff0000);
+            scene.add(keyLightHelper);
 
-        //    const rimLightHelper = new THREE.PointLightHelper(rimLight, 10, 0x00ff00);
-        //    scene.add(rimLightHelper);
+            const rimLightHelper = new THREE.PointLightHelper(rimLight, 10, 0x00ff00);
+            scene.add(rimLightHelper);
 
-        //    const fillLightHelper = new THREE.PointLightHelper(fillLight, 10, 0x0000ff);
-        //    scene.add(fillLightHelper);
+            const fillLightHelper = new THREE.PointLightHelper(fillLight, 10, 0x0000ff);
+            scene.add(fillLightHelper);
+
+       }
 
            window.avatar = avatar;
            scene.add(avatar);
@@ -211,7 +216,23 @@ gltfLoader.load('./arrow_draco.glb', (gltf) => {
         }
     });
 
-    scene.add(refreshArrow); 
+    const arrowLight = new THREE.PointLight(0xffffff, 1.5, 4); // intensity, distance
+        const arrowLight2 = new THREE.PointLight(0xffffff, 1.5, 4); // intensity, distance
+
+    arrowLight.position.set(0, 0.2, 4); //
+    arrowLight2.position.set(0, 0, -4); // 
+    refreshArrow.add(arrowLight, arrowLight2); // Attach the light directly to the arrow
+
+    // Optional: Add a light helper if in debug mode
+    if (SETTINGS.DEBUG) {
+        const arrowLightHelper = new THREE.PointLightHelper(arrowLight, 0.2);
+        const arrowLightHelper2 = new THREE.PointLightHelper(arrowLight2, 0.2);
+        scene.add(arrowLightHelper, arrowLightHelper2);
+    }
+
+camera.add(refreshArrow); //
+refreshArrow.position.set(0.25, 1.1, -3); // x is distance from center, y is height, z is depth
+scene.add(camera); // Just to be safe — make sure camera is still in the scene
 
 });
 
@@ -253,7 +274,7 @@ devImages2: ["Puffer_Material.png", "Puffer_Material2.png"],
     finalImages: ["Jumpsuit1.jpg", "Jumpsuit2.png"],
     devImages: ["Jumpsuit_Wireframe.png"], 
     devImages2: ["Jumpsuit1_Material.png", "Jumpsuit2_Material.png"],
-          glowColor: "rgb(190, 255, 170)" // green
+          glowColor: "rgb(232, 183, 255)" // green
 
   },
 
@@ -550,19 +571,50 @@ window.addEventListener('click', (event) => {
     } 
 });
 
+
 // REPLACE AVATAR ON CLICK WITH SELECTED GARMENT 
 function replaceAvatar(garment, posedAvatarUrl) {
   if (isLoadingPosedAvatar || avatarReplaced) return;
   isLoadingPosedAvatar = true;
+  
 
+  // Remove previous avatar and its attached lights/helpers
   if (window.avatar) {
+    // Remove avatar-specific lights if they exist
+    if (window.avatar.userData?.attachedLights?.length) {
+      window.avatar.userData.attachedLights.forEach(light => {
+        if (light.parent) light.parent.remove(light);
+      });
+    }
+
+    // Remove debug helpers if present
+    if (window.avatar.userData?.cleanupHelpers) {
+      window.avatar.userData.cleanupHelpers();
+    }
+
     scene.remove(window.avatar);
     window.avatar = null;
   }
 
   const garmentName = garment.name?.toLowerCase() || '';
-
   updateOverlay(garmentName);
+
+  // 🔥 Remove all existing garments and their lights
+garments.forEach(({ object: garment }) => {
+  if (garment.userData?.attachedLights?.length) {
+    garment.userData.attachedLights.forEach(light => {
+      if (light.parent) light.parent.remove(light);
+    });
+  }
+
+  if (garment.userData?.cleanupHelpers) {
+    garment.userData.cleanupHelpers();
+  }
+
+  scene.remove(garment);
+});
+garments.length = 0;
+
 
   const posedKey = Object.keys(garmentToPosedAvatarMap).find(key =>
     garmentName.includes(key) || key.includes(garmentName)
@@ -570,33 +622,37 @@ function replaceAvatar(garment, posedAvatarUrl) {
 
   const avatar = posedAvatars[posedKey];
 
-if (!avatar.userData.cachedClone) {
-  avatar.userData.cachedClone = avatar.clone(true);
-}
-const newAvatar = avatar.userData.cachedClone.clone(true);
+  // Clone the posed avatar
+  if (!avatar.userData.cachedClone) {
+    avatar.userData.cachedClone = avatar.clone(true);
+  }
+  const newAvatar = avatar.userData.cachedClone.clone(true);
+
   processPBRMaterials(newAvatar);
   newAvatar.scale.set(0.008, 0.008, 0.008);
   newAvatar.position.set(0, -0.6, 0);
 
-  const keyLight = new THREE.PointLight(0xFFFFFF, 7, 10, 2);
-  keyLight.position.set(-100, 150, 100);
+  // Add lights to posed avatar
+  const keyLight = new THREE.PointLight(0xffffff, 3, 100, 2); //color, intensity, distance, decay
+  keyLight.position.set(-100, 150, 100); //x is distance from center, y is height, z is depth
   keyLight.castShadow = true;
 
-  const rimLight = new THREE.PointLight(0xFFFFFF, 4, 50, 1);
+  const rimLight = new THREE.PointLight(0xffffff, 2, 50, 1);
   rimLight.position.set(-100, 130, -100);
 
-  const fillLight = new THREE.PointLight(0xFFFFFF, 6, 50, 1);
+  const fillLight = new THREE.PointLight(0xffffff, 3, 50, 1);
   fillLight.position.set(100, 150, -100);
 
   newAvatar.add(keyLight, rimLight, fillLight);
 
+  // Track lights for future cleanup
+  newAvatar.userData.attachedLights = [keyLight, rimLight, fillLight];
+
   window.avatar = newAvatar;
+  scene.add(newAvatar);
   isLoadingPosedAvatar = false;
 
-  scene.add(newAvatar);
-
-
-  // Animate camera first
+  // Animate camera
   gsap.to(camera.position, {
     x: 0,
     y: 0,
@@ -606,7 +662,6 @@ const newAvatar = avatar.userData.cachedClone.clone(true);
     onUpdate: () => controls.update()
   });
 
-  // Then update controls and show overlay
   gsap.to(controls.target, {
     x: 0,
     y: 0.18,
@@ -615,7 +670,6 @@ const newAvatar = avatar.userData.cachedClone.clone(true);
     ease: "power2.out",
     onUpdate: () => controls.update(),
     onComplete: () => {
-      // Lock camera to zoom/rotate only
       controls.enablePan = false;
       controls.enableZoom = true;
       controls.enableRotate = true;
@@ -623,28 +677,22 @@ const newAvatar = avatar.userData.cachedClone.clone(true);
       controls.maxDistance = 5;
       controls.update();
 
-      // Reveal overlay
       const overlay = document.getElementById("overlay");
+      if (!overlay.classList.contains("show")) {
+        overlay.classList.add("show");
+      }
 
-if (!overlay.classList.contains("show")) {
-  overlay.classList.add("show");
-}
-
-document.getElementById("overlay").classList.add("show");
-
-console.log('🧪 Avatar loaded. Controls state:',
-  {
-    enableZoom: controls.enableZoom,
-    enableRotate: controls.enableRotate,
-    enablePan: controls.enablePan,
-    target: controls.target.clone(),
-    cameraPosition: camera.position.clone()
-  }
-);
-
+      console.log('🧪 Avatar loaded. Controls state:', {
+        enableZoom: controls.enableZoom,
+        enableRotate: controls.enableRotate,
+        enablePan: controls.enablePan,
+        target: controls.target.clone(),
+        cameraPosition: camera.position.clone()
+      });
     }
   });
 }
+
 
 function updateOverlay(garmentNameRaw) {
   const garmentName = garmentNameRaw.replace('_draco', '').toLowerCase();
@@ -968,34 +1016,31 @@ function loadGarment(filePath, index) {
 
                 
         // 1. Key light - Main light, brightest, 45° front-right
-        const keyLight = new THREE.PointLight(0xffffff, 1, 1); // white color, intensity, distance
-        keyLight.position.set(1, 1, 1); // x (negative left of garment, positive right), y (height), z (negative behind garment, positive front)
+        const keyLight = new THREE.PointLight(0xeffaff, 2, 2); // white color, intensity, distance
+        keyLight.position.set(0, 1.5, 2); // x (negative left of garment, positive right), y (height), z (negative behind garment, positive front)
         garment.add(keyLight);
-        
-        // 2. Fill light - Softer light, opposite the key light
-        const fillLight = new THREE.PointLight(0xFFFFFF, 1, 1); // cyan c9ffed
-        fillLight.position.set(-1, 1, 1); // 
-        garment.add(fillLight);
-        
+
+        // 2. Fill light - Front-left for softening shadows
+       // const fillLight = new THREE.PointLight(0xffffff, 1, 2); // white color, intensity, distance
+      //  fillLight.position.set(-1, 1, 1);
+      //  garment.add(fillLight);
+
         // 3. Rim light - Behind subject for edge definition
-    //    const rimLight = new THREE.PointLight(0xFFFFFF, 1.5, 1); // pink ffd6f6
-    //    rimLight.position.set(1, 1, -1);
-    //    garment.add(rimLight);
+        const rimLight = new THREE.PointLight(0xffeffb, 2, 2); // pink ffd6f6
+        rimLight.position.set(1, 1, -2);
+        garment.add(rimLight);
         
-        // 4. Highlight light - Top light for specific highlights
-      //  const highlightLight = new THREE.PointLight(0xFFFFFF, 1.5, 1); // ice blue D7F1FF
-      //  highlightLight.position.set(-1, 1, -1);
-     //   garment.add(highlightLight);
+        garment.userData.attachedLights = [keyLight, rimLight];
+
         
         // Light helpers - only create them if debug mode is enabled
         if (SETTINGS.DEBUG) {
             const keyHelper = new THREE.PointLightHelper(keyLight, 0.3);
-            const fillHelper = new THREE.PointLightHelper(fillLight, 0.3);
-          //  const rimHelper = new THREE.PointLightHelper(rimLight, 0.3);
-          //  const highlightHelper = new THREE.PointLightHelper(highlightLight, 0.3);
+            const rimHelper = new THREE.PointLightHelper(rimLight, 0.3);
+
             
-            lightHelpers.push(keyHelper, fillHelper);
-            scene.add(keyHelper, fillHelper);
+            lightHelpers.push(keyHelper, rimHelper);
+            scene.add(keyHelper, rimHelper);
             
             // Add cleanup method to the garment
             garment.userData.cleanupHelpers = () => {
@@ -1575,6 +1620,7 @@ function restoreMaterial(obj) {
   
     // Avatar and UI rotation
     if (window.avatar) {
+      
       window.avatar.rotation.y += 0.005;
     }
   
