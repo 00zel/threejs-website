@@ -335,6 +335,54 @@ padding-top: 10vh;
   border-radius: 0;
 }
 
+#loading-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: black;
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: 'Dreamer', sans-serif;
+   opacity: 1;
+  transition: opacity 1.2s ease;
+  pointer-events: none;
+}
+
+.loading-text {
+  font-size: 8rem;
+  color: white;
+text-shadow:
+    0 0 5px rgba(255, 255, 255, 0.4),
+    0 0 10px rgba(255, 255, 255, 0.4),
+    0 0 20px rgba(255, 255, 255, 0.4),
+    0 0 40px rgba(255, 255, 255, 0.4); /* stronger glow */
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+.dots::after {
+  content: "";
+  animation: dots 1.2s steps(4, end) infinite;
+}
+
+@keyframes dots {
+  0%   { content: ""; }
+  10%  { content: " . "; }
+  20%  { content: " . . "; }
+  30%  { content: " . . . "; }
+  40% { content: " . . . . "; }
+  50% { content: " . . . . . "; }
+  60% { content: " . . . . .  . "; }
+  70% { content: " . . . . .  . . "; }
+  80% { content: " . . . . .  . .  . "; }
+  90% { content: " . . . . .  . .  . . "; }
+  100% { content: " . . . . .  . .  . .  . "; }
+}
+
+
 
   </style>
 </head>
@@ -351,7 +399,12 @@ padding-top: 10vh;
 
   <script type="module" src="/src/main.js"></script>
 
+  <div id="loading-screen">
+  <span class="loading-text">Loading<span class="dots"></span></span>
+</div>
+
 <div id="overlay" class="hidden">
+
   <!-- Title: Clickable link box -->
 <div id="title-overlay">
   <a id="title-link" href="#" target="_blank">

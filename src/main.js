@@ -127,7 +127,6 @@ camera.layers.enable(BLOOM_LAYER); // Layer 1
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
-renderer.setPixelRatio(window.devicePixelRatio);
 renderer.outputEncoding = THREE.sRGBEncoding;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
@@ -151,11 +150,19 @@ function preloadAllPosedAvatars() {
       });
     });
   }
-  
+
+  document.addEventListener("DOMContentLoaded", () => {
+  const loadingScreen = document.getElementById("loading-screen");
+  if (loadingScreen) {
+    loadingScreen.style.display = "flex";
+  }
+});
+
+
   
 function loadAvatar() {
     gltfLoader.load(  
-        './Avatar_Base2.glb',
+        './Avatar_Base_draco.glb',
         (gltf) => {
             const avatar = gltf.scene;
             processPBRMaterials(avatar); // Add this line
@@ -166,14 +173,14 @@ function loadAvatar() {
 
             // ATTACH LIGHTS TO THE AVATAR
 
-            const keyLight = new THREE.PointLight(0xFFFFFF, 10, 1.3, 2); // color white, intensity 10, distance 2, decay 2
+            const keyLight = new THREE.PointLight(0xFFFFFF, 2, 1.3, 2); // color white, intensity 10, distance 2, decay 2
             keyLight.position.set(80, 140, 80);
             keyLight.castShadow = true;
 
-            const rimLight = new THREE.PointLight(0xFFFFFF, 5, 1.3, 2); // FFA0B0 purple
+            const rimLight = new THREE.PointLight(0xFFFFFF, 2, 1.3, 2); // FFA0B0 purple
             rimLight.position.set(-80, 130, -80);
 
-            const fillLight = new THREE.PointLight(0xFFFFFF, 8, 1.3, 2); // DCFFCB green 
+            const fillLight = new THREE.PointLight(0xFFFFFF, 2, 1.3, 2); // DCFFCB green 
             fillLight.position.set(50, 80, -50);
 
             avatar.add(keyLight, rimLight, fillLight);
@@ -197,6 +204,9 @@ function loadAvatar() {
 
            window.avatar = avatar;
            scene.add(avatar);
+
+          
+
         },
     );
 }
@@ -231,7 +241,7 @@ gltfLoader.load('./arrow_draco.glb', (gltf) => {
     }
 
 camera.add(refreshArrow); //
-refreshArrow.position.set(0.25, 1.1, -3); // x is distance from center, y is height, z is depth
+refreshArrow.position.set(0, 1.1, -3); // x is distance from center, y is height, z is depth
 scene.add(camera); // Just to be safe — make sure camera is still in the scene
 
 });
@@ -293,7 +303,7 @@ devImages2: ["Puffer_Material.png", "Puffer_Material2.png"],
     devImages: ["CharaM_Wireframe.png"], 
         devImages2: ["Chara_Materials2.png", "Chara_Materials1.png"],
 
-          glowColor: "rgba(251, 255, 198, 0.9)" // yellow
+          glowColor: "rgba(198, 229, 255, 0.9)" // blue
 
   },
 
@@ -320,6 +330,7 @@ devImages2: ["Puffer_Material.png", "Puffer_Material2.png"],
     title: "New Balance X Coco",
     role: "Garment Asset Manager",
     medium: "Interactive Showroom",
+    link: "https://www.artstation.com/artwork/K3PrJX",
     tools: [
       { label: "Creation & Animation", value: "CLO 3D" },
       { label: "Detailing", value: "ZBrush" },
@@ -346,9 +357,9 @@ cb: {
     { label: "Construction", value: "Sewing Tools" }
     ],
   finalImages: ["CB4.png", "CB2.png"],
-  devImages: ["CB_Wireframe.png"],
+  devImages: ["CB_Fabric.png", "CB_Fabric_2.png"],
   devImages2: ["CB3.png", "CB1.png"],
-  glowColor: "rgba(255, 222, 255, 0.9)" // pastel pink?
+  glowColor: "rgba(243, 222, 255, 0.9)" // lavendar
 }
 
 };
@@ -633,14 +644,14 @@ garments.length = 0;
   newAvatar.position.set(0, -0.6, 0);
 
   // Add lights to posed avatar
-  const keyLight = new THREE.PointLight(0xffffff, 3, 100, 2); //color, intensity, distance, decay
+  const keyLight = new THREE.PointLight(0xffffff, 4, 100, 2); //color, intensity, distance, decay
   keyLight.position.set(-100, 150, 100); //x is distance from center, y is height, z is depth
   keyLight.castShadow = true;
 
-  const rimLight = new THREE.PointLight(0xffffff, 2, 50, 1);
+  const rimLight = new THREE.PointLight(0xffffff, 3, 50, 1);
   rimLight.position.set(-100, 130, -100);
 
-  const fillLight = new THREE.PointLight(0xffffff, 3, 50, 1);
+  const fillLight = new THREE.PointLight(0xffffff, 4, 50, 1);
   fillLight.position.set(100, 150, -100);
 
   newAvatar.add(keyLight, rimLight, fillLight);
@@ -829,8 +840,6 @@ cyclingTitle.addEventListener('mouseleave', stopFontCycle);
 
 
 
-
-
 function cleanupSceneBeforePosing() {
     // 1. Remove the current avatar (initial or previous posed)
     if (currentAvatar) {
@@ -980,11 +989,11 @@ function flashEmissive(material, options = {}) {
 // GARMENT FILES
 const garmentFiles = [
     { path: './Puffer_draco.glb', offset: 0 },
-    { path: './CharaM_draco.glb', offset: 1 },
+    { path: './CB_draco.glb', offset: 1 },
     { path: './Domi_draco.glb', offset: 2 },
     { path: './Jumpsuit_draco.glb', offset: 3 },
     { path: './NB_draco.glb', offset: 4 },
-    { path: './CB_draco.glb', offset: 5 }
+    { path: './CharaM_draco.glb', offset: 5 }
 ];
 
 
@@ -1067,6 +1076,15 @@ function loadGarment(filePath, index) {
         garments.push({ object: garment });
         scene.add(garment);
 
+        garmentsLoaded++;
+if (garmentsLoaded === totalGarments) {
+  const loadingScreen = document.getElementById("loading-screen");
+  if (loadingScreen) {
+    loadingScreen.style.display = "none";
+    }
+}
+
+
 // 👇 PRECOMPUTE dissolve data for the first mesh
 let targetMesh = null;
 garment.traverse(child => {
@@ -1119,6 +1137,8 @@ if (targetMesh) {
       }
     );
 }
+let garmentsLoaded = 0;
+const totalGarments = garmentFiles.length;
 
 garmentFiles.forEach((file, index) => {
     loadGarment(file.path, index);
@@ -1176,8 +1196,6 @@ function getObjectUnderMouse() {
 
     return hovered;
 }
-
-
 
 
 
@@ -1515,7 +1533,6 @@ function setupSelectiveBloom() {
     };
 }
 
-
 // Initialize the bloom effect
 const bloomEffect = setupSelectiveBloom();
 
@@ -1709,10 +1726,6 @@ function processPBRMaterials(object) {
 
 function dissolveMesh(mesh, duration = 3000, targetCenter = new THREE.Vector3(0, 0, 0)) {
   const data = mesh.userData.dissolveData;
-  if (!data) {
-    console.warn('No dissolve data found for this mesh');
-    return;
-  }
 
   // Transform precomputed clusters to local space of this mesh
   const localClusters = data.targetClusters.map(c =>
@@ -1782,7 +1795,6 @@ function dissolveMesh(mesh, duration = 3000, targetCenter = new THREE.Vector3(0,
 
 
 
-  
   
  function updateDissolves() {
   const now = performance.now();
