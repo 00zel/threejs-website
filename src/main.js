@@ -990,9 +990,9 @@ function flashEmissive(material, options = {}) {
 const garmentFiles = [
     { path: './Puffer_draco.glb', offset: 0 },
     { path: './CB_draco.glb', offset: 1 },
-    { path: './Domi_draco.glb', offset: 2 },
-    { path: './Jumpsuit_draco.glb', offset: 3 },
-    { path: './NB_draco.glb', offset: 4 },
+    { path: './Jumpsuit_draco.glb', offset: 2 },
+    { path: './NB_draco.glb', offset: 3 },
+    { path: './Domi_draco.glb', offset: 4 },
     { path: './CharaM_draco.glb', offset: 5 }
 ];
 
