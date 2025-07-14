@@ -162,7 +162,7 @@ function preloadAllPosedAvatars() {
   
 function loadAvatar() {
     gltfLoader.load(  
-        './Avatar_Base_draco.glb',
+        './Avatar_Base_draco2.glb',
         (gltf) => {
             const avatar = gltf.scene;
             processPBRMaterials(avatar); // Add this line
@@ -212,7 +212,7 @@ function loadAvatar() {
 }
 
 
-gltfLoader.load('./arrow_draco.glb', (gltf) => {
+gltfLoader.load('./arrow_draco2.glb', (gltf) => {
     refreshArrow = gltf.scene;
     refreshArrow.scale.set(0.1, 0.1, 0.1);
     refreshArrow.position.set(0, 1.3, 0);
@@ -706,7 +706,9 @@ garments.length = 0;
 
 
 function updateOverlay(garmentNameRaw) {
-  const garmentName = garmentNameRaw.replace('_draco', '').toLowerCase();
+
+
+  const garmentName = garmentNameRaw.replace('_draco2', '').toLowerCase();
   const data = garmentOverlayData[garmentName];
 
   // Update link
@@ -786,6 +788,8 @@ if (rightEl) {
 if (!overlay.classList.contains("show")) {
   overlay.classList.add("show");
 }
+
+
 }
 
 let cyclingTitle = document.getElementById('cycling-title');
@@ -865,12 +869,12 @@ function cleanupSceneBeforePosing() {
   
 // Mapping between garments and their associated posed avatars
 const garmentToPosedAvatarMap = {
-    'jumpsuit': './Avatar_Jumpsuit_draco.glb',
-    'charam': './Avatar_Chara_draco.glb',
-    'domi': './Avatar_Domi_draco.glb',
-    'puffer': './Avatar_Puffer_draco.glb',
-    'nb': './Avatar_NB_draco.glb',
-    'cb': './Avatar_CB_draco.glb'
+    'jumpsuit': './Avatar_Jumpsuit_draco2.glb',
+    'charam': './Avatar_Chara_draco2.glb',
+    'domi': './Avatar_Domi_draco2.glb',
+    'puffer': './Avatar_Puffer_draco2.glb',
+    'nb': './Avatar_NB_draco2.glb',
+    'cb': './Avatar_CB_draco2.glb'
 };
 
 loadAvatar();
@@ -988,12 +992,12 @@ function flashEmissive(material, options = {}) {
 
 // GARMENT FILES
 const garmentFiles = [
-    { path: './Puffer_draco.glb', offset: 0 },
-    { path: './CB_draco.glb', offset: 1 },
-    { path: './Jumpsuit_draco.glb', offset: 2 },
-    { path: './NB_draco.glb', offset: 3 },
-    { path: './Domi_draco.glb', offset: 4 },
-    { path: './CharaM_draco.glb', offset: 5 }
+    { path: './Puffer_draco2.glb', offset: 0 },
+    { path: './CB_draco2.glb', offset: 1 },
+    { path: './Jumpsuit_draco2.glb', offset: 2 },
+    { path: './NB_draco2.glb', offset: 3 },
+    { path: './Domi_draco2.glb', offset: 4 },
+    { path: './CharaM_draco2.glb', offset: 5 }
 ];
 
 
@@ -1080,7 +1084,9 @@ function loadGarment(filePath, index) {
 if (garmentsLoaded === totalGarments) {
   const loadingScreen = document.getElementById("loading-screen");
   if (loadingScreen) {
-    loadingScreen.style.display = "none";
+setTimeout(() => {
+  loadingScreen.classList.add('fade-out');
+}, 1000); // delay in ms — adjust this to your taste
     }
 }
 
