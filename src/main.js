@@ -70,7 +70,7 @@ const garmentToCursorMap = {
     "charam": "./chara_cursor.png",
     "puffer": "./puffer_cursor.png",
     "nb": "./NB_cursor.png",
-    "domi": "./test.png",
+    "domi": "./Domi_cursor.png",
     "cb": "./CB_cursor.png"
 };
 
@@ -264,7 +264,7 @@ const garmentOverlayData = {
       { label: "Rendering", value: "Unreal Engine" }
     ],
     finalImages: ["MCM3.png", "MCM2.png"],
-    devImages: ["MCM_Wireframe.png", "MCM_Pattern.png"],
+    devImages: ["MCM_Wireframe.png", "Puffer_Pattern.png"],
 devImages2: ["Puffer_Material.png", "Puffer_Material2.png"],
       glowColor: "rgb(255, 255, 255)" // 🧊 cyan
 
@@ -282,7 +282,7 @@ devImages2: ["Puffer_Material.png", "Puffer_Material2.png"],
       { label: "Rendering", value: "Unreal Engine" }
     ],
     finalImages: ["Jumpsuit1.jpg", "Jumpsuit2.png"],
-    devImages: ["Jumpsuit_Wireframe.png"], 
+    devImages: ["Jumpsuit_Wireframe.png", "Jumpsuit_Pattern.png"], 
     devImages2: ["Jumpsuit1_Material.png", "Jumpsuit2_Material.png"],
           glowColor: "rgb(232, 183, 255)" // green
 
@@ -300,7 +300,7 @@ devImages2: ["Puffer_Material.png", "Puffer_Material2.png"],
       { label: "Render", value: "Unreal Engine" }
     ],
     finalImages: ["Chara1.png", "Chara2.png"],
-    devImages: ["CharaM_Wireframe.png"], 
+    devImages: ["Chara_Wireframe.png", "Chara_Pattern.png"], 
         devImages2: ["Chara_Materials2.png", "Chara_Materials1.png"],
 
           glowColor: "rgba(198, 229, 255, 0.9)" // blue
@@ -318,7 +318,7 @@ devImages2: ["Puffer_Material.png", "Puffer_Material2.png"],
       { label: "Texturing", value: "Substance Painter" },
       { label: "Render", value: "Unreal Engine" }
     ],
-    finalImages: ["Domi1.jpg", "Domi_Modeled1.png", "Domi_Modeled2.png"],
+    finalImages: ["Domi1.jpg", "Domi_Modeled.png"],
     devImages: ["Skirt_25.png", "Skirt_13.png", "Skirt_26.png", "Skirt_7.png"], 
         devImages2: ["Skirt.png", "Skirt_12.png", "Skirt_27.png", "Skirt_1.png"],
 
@@ -339,7 +339,7 @@ devImages2: ["Puffer_Material.png", "Puffer_Material2.png"],
       { label: "Render", value: "Unreal Engine" }
     ],
     finalImages: ["NB1.jpeg", "NB2.jpeg"],
-    devImages: ["NB2_Wireframe.png"], 
+    devImages: ["NB_Wireframe.png", "NB_Pattern.png"], 
         devImages2: ["NB1_Materials.png", "NB2_Materials.png", "NB3_Materials.png"],
 
           glowColor: "rgba(118, 234, 255, 0.9)" // 🧊 cyan
@@ -356,9 +356,9 @@ cb: {
     { label: "Design & Creation", value: "CLO 3D" },
     { label: "Construction", value: "Sewing Tools" }
     ],
-  finalImages: ["CB4.png", "CB2.png"],
-  devImages: ["CB_Fabric.png", "CB_Fabric_2.png"],
-  devImages2: ["CB3.png", "CB1.png"],
+  finalImages: ["CB4.png", "CB3.png"],
+  devImages: ["Karina_Wireframe.png", "Karina_Pattern.png"],
+  devImages2: ["CB_Fabric.png", "CB_Fabric_2.png"],
   glowColor: "rgba(243, 222, 255, 0.9)" // lavendar
 }
 
