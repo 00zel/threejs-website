@@ -1,6 +1,8 @@
 {
   "name": "threejs",
   "private": true,
+  "homepage": "https://00zel.github.io/threejs-website",
+
   "version": "0.0.0",
   "type": "module",
   "scripts": {
