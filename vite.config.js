@@ -1,15 +1,15 @@
 import { defineConfig } from 'vite';
 
-console.log('✅ Vite config loaded!');
+console.log('Vite config loaded!');
 
 export default defineConfig({
   server: {
     mimeTypes: {
-      'model/gltf-binary': ['glb'], // Ensuring GLB files are recognized
+      'model/gltf-binary': ['glb'], 
     }
   },
 
-  base: '/threejs-website/',
+  base: './',
 
   build: {
     outDir: 'dist',

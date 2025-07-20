@@ -66,14 +66,18 @@ let isHoveringRefreshArrow = false;
 let refreshRotationSpeed = 0.015; // Default rotation speed for the refresh arrow
 const ANIMATION_DURATION = 1.5; // or try 1.5 for more drama
 
+console.log('BASE_URL is:', import.meta.env.BASE_URL);
+
+
 const garmentToCursorMap = {
-    "jumpsuit": "./jumpsuit_cursor.png",
-    "charam": "./chara_cursor.png",
-    "puffer": "./puffer_cursor.png",
-    "nb": "./NB_cursor.png",
-    "domi": "./Domi_cursor.png",
-    "cb": "./CB_cursor.png"
+  "jumpsuit": import.meta.env.BASE_URL + 'jumpsuit_cursor.png',
+  "charam": import.meta.env.BASE_URL + 'chara_cursor.png',
+  "puffer": import.meta.env.BASE_URL + 'puffer_cursor.png',
+  "nb": import.meta.env.BASE_URL + 'NB_cursor.png',
+  "domi": import.meta.env.BASE_URL + 'Domi_cursor.png',
+  "cb": import.meta.env.BASE_URL + 'CB_cursor.png'
 };
+
 
 const posedAvatars = {};
 const activeDissolves = [];
@@ -91,12 +95,12 @@ const BASE_SCALE = 1; // original size
 
 
 //STATS GUI 
-const stats = new Stats();
+//const stats = new Stats();
 // Optionally, set which panel to show:
 // 0: fps, 1: ms, 2: mb, 3+: custom
-stats.showPanel(0); 
+//stats.showPanel(0); 
 // Append the stats DOM element to the body.
-document.body.appendChild(stats.dom);
+// document.body.appendChild(stats.dom);
 
 // CAMERA START POSITION
 const cameraStartPosition = new THREE.Vector3(0, 1.2, 6);
@@ -162,8 +166,8 @@ function preloadAllPosedAvatars() {
 
   
 function loadAvatar() {
-    gltfLoader.load(  
-        './Avatar_Base_draco2.glb',
+    gltfLoader.load(import.meta.env.BASE_URL +
+       'Avatar_Base_draco2.glb',
         (gltf) => {
             const avatar = gltf.scene;
             processPBRMaterials(avatar); // Add this line
@@ -213,7 +217,7 @@ function loadAvatar() {
 }
 
 
-gltfLoader.load('./arrow_draco2.glb', (gltf) => {
+gltfLoader.load( import.meta.env.BASE_URL + 'arrow_draco2.glb', (gltf) => {
     refreshArrow = gltf.scene;
     refreshArrow.scale.set(0.1, 0.1, 0.1);
     refreshArrow.position.set(0, 1.3, 0);
@@ -744,7 +748,7 @@ leftEl.innerHTML = `
     <p><span class="label">Medium:</span> <span class="info">${data.medium}</span></p>
   </div>
   <div class="final-stills">
-    ${data.finalImages.map(src => `<img src="${src}" alt="Final Still">`).join('')}
+${data.finalImages.map(src => `<img src="${import.meta.env.BASE_URL + src}" alt="Final Still">`).join('')}
   </div>
 `;
 
@@ -759,7 +763,7 @@ document.documentElement.style.setProperty('--glow-color', data.glowColor || 'rg
 if (rightEl) {
   rightEl.innerHTML = `
     <div class="dev-graphics">
-      ${data.devImages.map(src => `<img src="${src}" alt="Dev Image">`).join('')}
+      ${data.devImages.map(src => `<img src="${import.meta.env.BASE_URL + src}" alt="Dev Image">`).join('')}
     </div>
     <p class="tools-label">Tools:</p>
     <ul>
@@ -771,13 +775,14 @@ if (rightEl) {
 
   
 
-  // ⬇️ Append the second row of dev images if available
+  // Append the second row of dev images if available
   if (data.devImages2) {
     const extraDevRow = document.createElement('div');
     extraDevRow.classList.add('dev-graphics');
-    extraDevRow.innerHTML = data.devImages2
-      .map(src => `<img src="${src}" alt="Additional Dev Image">`)
-      .join('');
+   extraDevRow.innerHTML = data.devImages2
+  .map(src => `<img src="${import.meta.env.BASE_URL + src}" alt="Additional Dev Image">`)
+  .join('');
+
     rightEl.appendChild(extraDevRow);
   }
 }
@@ -870,13 +875,14 @@ function cleanupSceneBeforePosing() {
   
 // Mapping between garments and their associated posed avatars
 const garmentToPosedAvatarMap = {
-    'jumpsuit': './Avatar_Jumpsuit_draco2.glb',
-    'charam': './Avatar_Chara_draco2.glb',
-    'domi': './Avatar_Domi_draco2.glb',
-    'puffer': './Avatar_Puffer_draco2.glb',
-    'nb': './Avatar_NB_draco2.glb',
-    'cb': './Avatar_CB_draco2.glb'
+  'jumpsuit': import.meta.env.BASE_URL + 'Avatar_Jumpsuit_draco2.glb',
+  'charam': import.meta.env.BASE_URL + 'Avatar_Chara_draco2.glb',
+  'domi': import.meta.env.BASE_URL + 'Avatar_Domi_draco2.glb',
+  'puffer': import.meta.env.BASE_URL + 'Avatar_Puffer_draco2.glb',
+  'nb': import.meta.env.BASE_URL + 'Avatar_NB_draco2.glb',
+  'cb': import.meta.env.BASE_URL + 'Avatar_CB_draco2.glb'
 };
+
 
 loadAvatar();
 preloadAllPosedAvatars();
@@ -902,33 +908,6 @@ outlinePass.visibleEdgeColor.set(0xFFFFFF); //fddeff
 outlinePass.hiddenEdgeColor.set(0x222222);
 composer.addPass(outlinePass);
 
-function applyMaterialMaps(mesh, materialMaps) {
-    const textureLoader = new THREE.TextureLoader();
-
-    if (Array.isArray(mesh.material) && Array.isArray(materialMaps)) {
-        // If the mesh has multiple materials, assign the correct texture set to each one
-        mesh.material.forEach((material, index) => {
-            const maps = materialMaps[index] || {}; // Get corresponding texture set for each material
-            material.map = maps.diffuse ? textureLoader.load(maps.diffuse) : null;
-            material.normalMap = maps.normal ? textureLoader.load(maps.normal) : null;
-            material.roughnessMap = maps.roughness ? textureLoader.load(maps.roughness) : null;
-            material.metalnessMap = maps.metalness ? textureLoader.load(maps.metalness) : null;
-            material.alphaMap = maps.alpha ? textureLoader.load(maps.alpha) : null;
-            material.transparent = !!maps.alpha;
-            material.needsUpdate = true;
-        });
-    } else {
-        // If the mesh has only one material, apply a single texture set
-        const maps = materialMaps[0] || materialMaps || {};
-        mesh.material.map = maps.diffuse ? textureLoader.load(maps.diffuse) : null;
-        mesh.material.normalMap = maps.normal ? textureLoader.load(maps.normal) : null;
-        mesh.material.roughnessMap = maps.roughness ? textureLoader.load(maps.roughness) : null;
-        mesh.material.metalnessMap = maps.metalness ? textureLoader.load(maps.metalness) : null;
-        mesh.material.alphaMap = maps.alpha ? textureLoader.load(maps.alpha) : null;
-        mesh.material.transparent = !!maps.alpha;
-        mesh.material.needsUpdate = true;
-    }
-}
 
 // Utility function to apply normal maps to a mesh based on ID 
 function applyNormalMap(mesh, normalMapPath) {
@@ -993,13 +972,14 @@ function flashEmissive(material, options = {}) {
 
 // GARMENT FILES
 const garmentFiles = [
-    { path: './Puffer_draco2.glb', offset: 0 },
-    { path: './CB_draco2.glb', offset: 1 },
-    { path: './Jumpsuit_draco2.glb', offset: 2 },
-    { path: './NB_draco2.glb', offset: 3 },
-    { path: './Domi_draco2.glb', offset: 4 },
-    { path: './CharaM_draco2.glb', offset: 5 }
+  { path: import.meta.env.BASE_URL + 'Puffer_draco2.glb', offset: 0 },
+  { path: import.meta.env.BASE_URL + 'CB_draco2.glb', offset: 1 },
+  { path: import.meta.env.BASE_URL + 'Jumpsuit_draco2.glb', offset: 2 },
+  { path: import.meta.env.BASE_URL + 'NB_draco2.glb', offset: 3 },
+  { path: import.meta.env.BASE_URL + 'Domi_draco2.glb', offset: 4 },
+  { path: import.meta.env.BASE_URL + 'CharaM_draco2.glb', offset: 5 }
 ];
+
 
 
 // LOAD GARMENTS AND POSITION THEM
@@ -1589,7 +1569,7 @@ function restoreMaterial(obj) {
   
 
   function animate() {
-    stats.begin();
+    // stats.begin();
 
     requestAnimationFrame(animate);
     const delta = clock.getDelta();
@@ -1672,7 +1652,7 @@ function restoreMaterial(obj) {
     updateDissolves();
 
       
-    stats.end();
+   // stats.end();
   }
   
   

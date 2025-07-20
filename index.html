@@ -383,7 +383,55 @@ text-shadow:
   pointer-events: none;
 }
 
+#mail-icon {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: block;
+  width: 40px;
+  height: 40px;
+  pointer-events: auto;
+}
 
+#mail-icon img {
+  width: 100%;
+  height: auto;
+  transition: filter 0.3s ease, transform 0.3s ease;
+  filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.3));
+}
+
+#mail-icon img:hover {
+  filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.9));
+  transform: scale(1.1);
+  cursor: pointer;
+}
+
+#contact-box {
+   color: #ffb6f9;
+     pointer-events: auto;
+  text-decoration: none;
+  font-weight: bold;
+  position: fixed;
+  bottom: 70px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.8);
+  color: rgb(255, 255, 255);
+  padding: 12px;
+  border-radius: 8px;
+  z-index: 999999;
+  display: none;
+  font-family: 'Zine', serif; 
+}
+
+#contact-box a {
+  color: inherit;
+  text-decoration: none;
+}
+
+#contact-box a:hover {
+  text-decoration: underline;
+}
 
 
   </style>
@@ -419,10 +467,7 @@ text-shadow:
   <!-- Left: Images first, then text -->
   <div class="overlay-left">
       <div class="overlay-content">
-
     <div class="final-stills">
-      <img src="final1.jpg" alt="Final 1" draggable="false">
-      <img src="final2.jpg" alt="Final 2" draggable="false">
     </div>
     <p><span>Role:</span> <span class="fancy">Garment Asset Manager</span></p>
     <p><span>Medium:</span> <span class="fancy">Interactive Showroom</span></p>
@@ -434,8 +479,6 @@ text-shadow:
       <div class="overlay-content">
 
     <div class="dev-graphics">
-      <img src="dev1.jpg" alt="Dev 1" draggable="false">
-      <img src="dev2.jpg" alt="Dev 2" draggable="false">
     </div>
 <p class="tools-label">Tools:</p>
     <ul>
@@ -445,6 +488,27 @@ text-shadow:
       <li><em>Render:</em> Unreal Engine</li>
     </ul>
   </div>
+
+ </div> 
+
+
+ <a href="#" id="mail-icon">
+  <img src="/mail.png" alt="Contact" />
+</a>
+
+<div id="contact-box">
+<a href="mailto:oozelly@gmail.com">oozelly@gmail.com</a>
+</div>
+
+<script>
+  const icon = document.getElementById('mail-icon');
+  const box = document.getElementById('contact-box');
+
+  icon.addEventListener('click', (e) => {
+    e.preventDefault();
+    box.style.display = box.style.display === 'block' ? 'none' : 'block';
+  });
+</script>
 
 
 </body>
