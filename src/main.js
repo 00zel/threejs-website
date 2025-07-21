@@ -25,7 +25,7 @@ const SETTINGS = {
     BASE_SPEED: 0.002
   },
   ROTATION: {
-    BASE_SPEED: 1
+    BASE_SPEED: 0.5
   },
   GLOW: {
     DEFAULT: 0.5,
@@ -66,9 +66,6 @@ let isHoveringRefreshArrow = false;
 let refreshRotationSpeed = 0.015; // Default rotation speed for the refresh arrow
 const ANIMATION_DURATION = 1.5; // or try 1.5 for more drama
 
-console.log('BASE_URL is:', import.meta.env.BASE_URL);
-
-
 const garmentToCursorMap = {
   "jumpsuit": import.meta.env.BASE_URL + 'jumpsuit_cursor.png',
   "charam": import.meta.env.BASE_URL + 'chara_cursor.png',
@@ -92,7 +89,6 @@ let refreshArrow;
 const BASE_WIDTH = 1920;
 const BASE_HEIGHT = 1080;
 const BASE_SCALE = 1; // original size
-
 
 //STATS GUI 
 //const stats = new Stats();
@@ -167,7 +163,7 @@ function preloadAllPosedAvatars() {
   
 function loadAvatar() {
     gltfLoader.load(import.meta.env.BASE_URL +
-       'Avatar_Base_draco2.glb',
+       'Avatar_Base.glb',
         (gltf) => {
             const avatar = gltf.scene;
             processPBRMaterials(avatar); // Add this line
@@ -217,7 +213,7 @@ function loadAvatar() {
 }
 
 
-gltfLoader.load( import.meta.env.BASE_URL + 'arrow_draco2.glb', (gltf) => {
+gltfLoader.load( import.meta.env.BASE_URL + 'arrow.glb', (gltf) => {
     refreshArrow = gltf.scene;
     refreshArrow.scale.set(0.1, 0.1, 0.1);
     refreshArrow.position.set(0, 1.3, 0);
@@ -358,8 +354,9 @@ cb: {
 
   link: "https://www.instagram.com/p/DLXxPhWMw2C/?igsh=MXZpdHJ3bWVyNHMwZw%3D%3D", 
   tools: [
-    { label: "Design & Creation", value: "CLO 3D" },
-    { label: "Construction", value: "Sewing Tools" }
+    { label: "Design", value: "CLO 3D" },
+    { label: "Construction", value: "Sewing Tools" },
+    { label: "Availability", value:  `<a href="mailto:oozelly@gmail.com?subject=Made%20to%20Order%20Request">Made to Order</a>` }
     ],
   finalImages: ["CB4.png", "CB3.png"],
   devImages: ["Karina_Wireframe.png", "Karina_Pattern.png"],
@@ -369,48 +366,43 @@ cb: {
 
 };
 
-
 function populateOverlay(garmentKey) {
 
-
-
+  console.log('Garment Key:', garmentKey);
 
   const data = garmentOverlayData[garmentKey];
 
+
   // Update link and text
- const titleOverlay = document.getElementById('title-overlay');
-let titleLink = document.getElementById('title-link');
+  const titleOverlay = document.getElementById('title-overlay');
+  let titleLink = document.getElementById('title-link');
 
-if (data.link && data.link.trim() !== "") {
-  // Ensure it's still an <a>
-  if (titleLink.tagName.toLowerCase() !== 'a') {
-    const newLink = document.createElement('a');
-    newLink.id = 'title-link';
-    newLink.target = '_blank';
-    titleOverlay.replaceChild(newLink, titleLink);
-    titleLink = newLink;
+  if (data.link && data.link.trim() !== "") {
+    if (titleLink.tagName.toLowerCase() !== 'a') {
+      const newLink = document.createElement('a');
+      newLink.id = 'title-link';
+      newLink.target = '_blank';
+      titleOverlay.replaceChild(newLink, titleLink);
+      titleLink = newLink;
+    }
+
+    titleLink.href = data.link;
+    titleLink.textContent = `Project: ${data.title}`;
+    titleLink.classList.remove('inactive-link');
+  } else {
+    const span = document.createElement('span');
+    span.id = 'title-link';
+    span.textContent = `Project: ${data.title}`;
+    span.className = 'inactive-link';
+    titleOverlay.replaceChild(span, titleLink);
   }
-
-  titleLink.href = data.link;
-  titleLink.textContent = `Project: ${data.title}`;
-  titleLink.classList.remove('inactive-link');
-} else {
-  // Replace <a> with <span> to kill link behavior
-  const span = document.createElement('span');
-  span.id = 'title-link';
-  span.textContent = `Project: ${data.title}`;
-  span.className = 'inactive-link';
-  titleOverlay.replaceChild(span, titleLink);
-}
-
 
   // Show overlay
   const overlay = document.getElementById('overlay');
   overlay.classList.remove('hidden');
   overlay.classList.add('show');
-
-
 }
+
 
 
 let expandedClone = null;
@@ -419,7 +411,7 @@ let originalRect = null;
 document.addEventListener('click', (e) => {
   const isExpanded = expandedClone !== null;
 
-  // ✅ Case: click to collapse the expanded image
+  //  Case: click to collapse the expanded image
   if (isExpanded && expandedClone.contains(e.target)) {
     Object.assign(expandedClone.style, {
       top: `${originalRect.top}px`,
@@ -698,13 +690,6 @@ garments.length = 0;
         overlay.classList.add("show");
       }
 
-      console.log('🧪 Avatar loaded. Controls state:', {
-        enableZoom: controls.enableZoom,
-        enableRotate: controls.enableRotate,
-        enablePan: controls.enablePan,
-        target: controls.target.clone(),
-        cameraPosition: camera.position.clone()
-      });
     }
   });
 }
@@ -875,12 +860,12 @@ function cleanupSceneBeforePosing() {
   
 // Mapping between garments and their associated posed avatars
 const garmentToPosedAvatarMap = {
-  'jumpsuit': import.meta.env.BASE_URL + 'Avatar_Jumpsuit_draco2.glb',
-  'charam': import.meta.env.BASE_URL + 'Avatar_Chara_draco2.glb',
-  'domi': import.meta.env.BASE_URL + 'Avatar_Domi_draco2.glb',
-  'puffer': import.meta.env.BASE_URL + 'Avatar_Puffer_draco2.glb',
-  'nb': import.meta.env.BASE_URL + 'Avatar_NB_draco2.glb',
-  'cb': import.meta.env.BASE_URL + 'Avatar_CB_draco2.glb'
+  'jumpsuit': import.meta.env.BASE_URL + 'Avatar_Jumpsuit.glb',
+  'charam': import.meta.env.BASE_URL + 'Avatar_Chara.glb',
+  'domi': import.meta.env.BASE_URL + 'Avatar_Domi.glb',
+  'puffer': import.meta.env.BASE_URL + 'Avatar_Puffer.glb',
+  'nb': import.meta.env.BASE_URL + 'Avatar_NB.glb',
+  'cb': import.meta.env.BASE_URL + 'Avatar_CB.glb'
 };
 
 
@@ -972,12 +957,12 @@ function flashEmissive(material, options = {}) {
 
 // GARMENT FILES
 const garmentFiles = [
-  { path: import.meta.env.BASE_URL + 'Puffer_draco2.glb', offset: 0 },
-  { path: import.meta.env.BASE_URL + 'CB_draco2.glb', offset: 1 },
-  { path: import.meta.env.BASE_URL + 'Jumpsuit_draco2.glb', offset: 2 },
-  { path: import.meta.env.BASE_URL + 'NB_draco2.glb', offset: 3 },
-  { path: import.meta.env.BASE_URL + 'Domi_draco2.glb', offset: 4 },
-  { path: import.meta.env.BASE_URL + 'CharaM_draco2.glb', offset: 5 }
+  { path: import.meta.env.BASE_URL + 'Puffer.glb', offset: 0 },
+  { path: import.meta.env.BASE_URL + 'CB.glb', offset: 1 },
+  { path: import.meta.env.BASE_URL + 'Jumpsuit.glb', offset: 2 },
+  { path: import.meta.env.BASE_URL + 'NB.glb', offset: 3 },
+  { path: import.meta.env.BASE_URL + 'Domi.glb', offset: 4 },
+  { path: import.meta.env.BASE_URL + 'CharaM.glb', offset: 5 }
 ];
 
 
@@ -1612,7 +1597,7 @@ function restoreMaterial(obj) {
         object.userData.rotationSpeed = SETTINGS.ROTATION.BASE_SPEED;
       }
   
-      const targetRotationSpeed = object.userData.isHovered ? 0.1 : SETTINGS.ROTATION.BASE_SPEED;
+      const targetRotationSpeed = object.userData.isHovered ? 0.01 : SETTINGS.ROTATION.BASE_SPEED;
       object.userData.rotationSpeed = THREE.MathUtils.lerp(object.userData.rotationSpeed, targetRotationSpeed, 0.02);
   
       object.rotation.y += object.userData.rotationSpeed * delta + Math.sin(object.userData.rotationOffset) * 0.01;
@@ -1833,3 +1818,36 @@ function dissolveMesh(mesh, duration = 3000, targetCenter = new THREE.Vector3(0,
     geometry.attributes.aAlpha.needsUpdate = true;
   }
 }
+
+
+window.addEventListener("DOMContentLoaded", () => {
+  console.log("DOM fully loaded ✅");
+
+  const aboutBtn = document.getElementById("about-button");
+  const aboutOverlay = document.getElementById("about-overlay");
+  const aboutClose = document.getElementById("about-close");
+
+  console.log("aboutBtn:", aboutBtn);
+  console.log("aboutOverlay:", aboutOverlay);
+  console.log("aboutClose:", aboutClose);
+
+  if (aboutBtn && aboutOverlay && aboutClose) {
+    console.log("All About elements found ✅");
+
+    aboutBtn.addEventListener("click", () => {
+      console.log("About button clicked ✅");
+      aboutOverlay.classList.remove("hidden");
+    });
+
+    aboutClose.addEventListener("click", () => {
+      console.log("About overlay closed ✅");
+      aboutOverlay.classList.add("hidden");
+    });
+  } else {
+    console.warn("❌ About elements missing in DOM");
+  }
+const btn = document.getElementById("about-button");
+console.log("About button:", btn)
+  
+});
+

@@ -88,6 +88,12 @@ html.fonts-loaded {
   font-weight: normal;
 }
 
+.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
 .info {
   font-family: 'Zine', serif;
   font-weight: normal;
@@ -379,7 +385,7 @@ text-shadow:
 
 #loading-screen.fade-out {
   opacity: 0;
-  transition: opacity 1.2s ease;
+  transition: opacity 1.5s ease;
   pointer-events: none;
 }
 
@@ -433,10 +439,149 @@ text-shadow:
   text-decoration: underline;
 }
 
+li a[href^="mailto:"] {
+  color: white !important;
+  text-decoration: none;
+  transition: filter 0.3s ease;
+}
+
+li a[href^="mailto:"]:hover {
+  filter: drop-shadow(0 0 10px white) drop-shadow(0 0 20px rgb(255, 255, 255));
+} 
+
+p a[href^="mailto:"] {
+  color: white !important;
+  text-decoration: none;
+  transition: filter 0.3s ease;
+}
+
+p a[href^="mailto:"]:hover {
+  filter: drop-shadow(0 0 10px white) drop-shadow(0 0 10px rgb(255, 255, 255));
+}
+
+
+#about-overlay {
+ position: fixed;
+top: 0;
+left: 0;
+width: 100vw;
+height: 100vh;
+backdrop-filter: blur(12px);
+background-color:transparent;
+color: white;
+display: flex;
+justify-content: center;
+align-items: center;
+opacity: 0;
+pointer-events: none;
+transition: opacity 1s ease;
+z-index: 99999999;
+}
+
+#about-overlay h2 {
+  font-family: 'Galaxyface'; /* Title font */
+  font-size: 5rem;
+  margin-bottom: 1rem;
+  text-align: center;
+  text-shadow:
+    0 0 5px rgba(255, 255, 255, 0.1),
+    0 0 10px rgba(255, 255, 255, 0.1),
+    0 0 20px rgba(255, 255, 255, 0.1),
+    0 0 40px rgba(255, 255, 255, 1); /* stronger glow */
+}
+
+#about-overlay p {
+  font-family: 'Zine', sans-serif; /* Subtitle font */
+  font-size: 2rem;
+  line-height: 2;
+  text-align: center;
+  margin: 0 auto;
+    text-shadow:
+    0 0 5px rgba(255, 255, 255, 0.1),
+    0 0 10px rgba(255, 255, 255, 0.1),
+    0 0 20px rgba(255, 255, 255, 0.1),
+    0 0 40px rgba(255, 255, 255, 1); /* stronger glow */
+}
+
+#about-overlay.show {
+  opacity: 1;
+  pointer-events: auto;
+
+}
+
+.about-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0,0,0,0.5); /* semi-transparent black */
+  z-index: 1;
+}
+
+.about-content {
+  position: relative;
+  z-index: 2; /* Ensure it's above the dark layer */
+  max-width: 2000px;
+  text-align: center;
+  padding: 2rem;
+}
+
+#about-close {
+  position: absolute;
+  top: 100px; /* move the X */
+  right: 20px; /* move the X */
+  font-size: 50px;
+  background: none;
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-family: 'Galaxyface'; 
+  text-shadow:
+    0 0 5px rgba(255, 255, 255, 1),
+    0 0 10px rgba(255, 255, 255, 1),
+    0 0 20px rgba(255, 255, 255, 1),
+    0 0 40px rgba(255, 255, 255, 10); /* stronger glow */
+
+}
+
 
   </style>
 </head>
 <body>
+  
+  <div id="about-button" class="about-trigger" style="
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 9999;
+  color: white;
+  font-family: 'Dreamer';
+  font-size: 1.2rem;
+  cursor: pointer;
+  text-shadow: 0 0 8px white;
+">
+  About
+</div>
+
+<div id="about-overlay" class="hidden">
+    <div class="about-bg"></div> 
+  <div class="about-content">
+    <button id="about-close">X</button>
+    <h2>Welcome</h2>
+    <p>This is a collection of 3D garments designed in CLO3D.</p>
+    <p>Each piece has been used in digital environments or produced as a physical garment.</p>
+    <p>Select pieces are made-to-order and wearable.</p>
+    <p>Contact me at <a href="mailto:00zelly@gmail.com">00zelly@gmail.com</a> for 3D garment design, animation, production, or made-to-order physical pieces.</p>
+
+    <ul>
+    </ul>
+  </div>
+</div>
+
+<div id="overlay" class="hidden">
+
+
 
 <script>
   document.documentElement.classList.add('fonts-loading');
@@ -447,13 +592,25 @@ text-shadow:
 </script>
 
 
+
+
+
   <script type="module" src="/src/main.js"></script>
+
+  
 
   <div id="loading-screen">
   <span class="loading-text">Loading<span class="dots"></span></span>
 </div>
 
-<div id="overlay" class="hidden">
+
+
+
+
+
+
+
+
 
   <!-- Title: Clickable link box -->
 <div id="title-overlay">
@@ -487,6 +644,7 @@ text-shadow:
       <li><em>Texturing:</em> Substance Painter</li>
       <li><em>Render:</em> Unreal Engine</li>
     </ul>
+
   </div>
 
  </div> 
@@ -508,6 +666,26 @@ text-shadow:
     e.preventDefault();
     box.style.display = box.style.display === 'block' ? 'none' : 'block';
   });
+</script>
+
+
+
+
+<script>
+ document.addEventListener('DOMContentLoaded', () => {
+  const aboutBtn = document.getElementById("about-button");
+  const aboutOverlay = document.getElementById("about-overlay");
+  const closeBtn = document.getElementById("about-close");
+
+  aboutBtn.addEventListener("click", () => {
+    aboutOverlay.classList.add("show");
+  });
+
+  closeBtn.addEventListener("click", () => {
+    aboutOverlay.classList.remove("show");
+  });
+});
+
 </script>
 
 
