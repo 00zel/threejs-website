@@ -81,11 +81,34 @@ html.fonts-loaded {
   font-style: normal;
 }
 
+#about-overlay,
+#loading-screen {
+  position: fixed;
+  inset: 0; /* shorthand for top, right, bottom, left = 0 */
+  width: 100%;
+  height: 100%;
+height: 100lvh; /* for modern browsers */
+min-height: 100vh; /* fallback */  max-width: 100vw;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+html, body {
+  height: 100%;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
 
 
 .label {
   font-family: 'Dreamer', sans-serif;
   font-weight: normal;
+}
+
+.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
 }
 
 .info {
@@ -340,10 +363,12 @@ padding-top: 10vh;
   top: 0;
   left: 0;
   width: 100vw;
-  height: 100vh;
+height: 100lvh; /* for modern browsers */
+min-height: 100vh; /* fallback */
 background: rgba(0, 0, 0, 0); /* translucent black */
   backdrop-filter: blur(5px);     /* optional: frosted glass effect */
   -webkit-backdrop-filter: blur(6px);  z-index: 9999;
+    background-color: rgba(0, 0, 0, 0.2); /* fallback for older mobile */
   display: flex;
   justify-content: center;
   align-items: center;
@@ -379,17 +404,224 @@ text-shadow:
 
 #loading-screen.fade-out {
   opacity: 0;
-  transition: opacity 1.2s ease;
+  transition: opacity 1.5s ease;
   pointer-events: none;
 }
 
+#mail-icon {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: block;
+  width: 40px;
+  height: 40px;
+  pointer-events: auto;
+}
 
+#mail-icon img {
+  width: 100%;
+  height: auto;
+  transition: filter 0.3s ease, transform 0.3s ease;
+  filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.3));
+}
+
+#mail-icon img:hover {
+  filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.9));
+  transform: scale(1.1);
+  cursor: pointer;
+}
+
+#contact-box {
+   color: #ffb6f9;
+     pointer-events: auto;
+  text-decoration: none;
+  font-weight: bold;
+  position: fixed;
+  bottom: 70px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.8);
+  color: rgb(255, 255, 255);
+  padding: 12px;
+  border-radius: 8px;
+  z-index: 999999;
+  display: none;
+  font-family: 'Zine', serif; 
+}
+
+#contact-box a {
+  color: inherit;
+  text-decoration: none;
+}
+
+#contact-box a:hover {
+  text-decoration: underline;
+}
+
+li a[href^="mailto:"] {
+  color: white !important;
+  text-decoration: none;
+  transition: filter 0.3s ease;
+}
+
+li a[href^="mailto:"]:hover {
+  filter: drop-shadow(0 0 10px white) drop-shadow(0 0 20px rgb(255, 255, 255));
+} 
+
+p a[href^="mailto:"] {
+  color: white !important;
+  text-decoration: none;
+  transition: filter 0.3s ease;
+}
+
+p a[href^="mailto:"]:hover {
+  filter: drop-shadow(0 0 10px white) drop-shadow(0 0 10px rgb(255, 255, 255));
+}
+
+
+#about-overlay {
+ position: fixed;
+top: 0;
+left: 0;
+width: 100vw;
+height: 100vh;
+backdrop-filter: blur(12px);
+background-color:transparent;
+  background-color: rgba(0, 0, 0, 0.2); /* fallback for older mobile */
+color: white;
+display: flex;
+justify-content: center;
+align-items: center;
+opacity: 0;
+pointer-events: none;
+transition: opacity 1s ease;
+z-index: 99999999;
+}
+
+#about-overlay h2 {
+  font-family: 'Galaxyface'; /* Title font */
+  font-size: 5rem;
+  margin-bottom: 1rem;
+  text-align: center;
+  text-shadow:
+    0 0 5px rgba(255, 255, 255, 0.1),
+    0 0 10px rgba(255, 255, 255, 0.1),
+    0 0 20px rgba(255, 255, 255, 0.1),
+    0 0 40px rgba(255, 255, 255, 1); /* stronger glow */
+}
+
+#about-overlay p {
+  font-family: 'Zine', sans-serif; /* Subtitle font */
+  font-size: 2rem;
+  line-height: 2;
+  text-align: center;
+  margin: 0 auto;
+    text-shadow:
+    0 0 5px rgba(255, 255, 255, 0.1),
+    0 0 10px rgba(255, 255, 255, 0.1),
+    0 0 20px rgba(255, 255, 255, 0.1),
+    0 0 40px rgba(255, 255, 255, 1); /* stronger glow */
+}
+
+#about-overlay.show {
+  opacity: 1;
+  pointer-events: auto;
+
+}
+
+.about-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0,0,0,0.5); /* semi-transparent black */
+  z-index: 1;
+}
+
+.about-content {
+  position: relative;
+  z-index: 2; /* Ensure it's above the dark layer */
+  max-width: 2000px;
+  text-align: center;
+  padding: 2rem;
+}
+
+#about-close {
+  position: absolute;
+  top: 100px; /* move the X */
+  right: 20px; /* move the X */
+  font-size: 50px;
+  background: none;
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-family: 'Galaxyface'; 
+  text-shadow:
+    0 0 5px rgba(255, 255, 255, 1),
+    0 0 10px rgba(255, 255, 255, 1),
+    0 0 20px rgba(255, 255, 255, 1),
+    0 0 40px rgba(255, 255, 255, 10); /* stronger glow */
+
+}
 
 
   </style>
-  <script type="module" crossorigin src="./assets/index-CpQ11cn6.js"></script>
+  <script type="module" crossorigin src="./assets/index-hUP-rHtm.js"></script>
 </head>
+
+
+
+
 <body>
+  
+  
+  <script>
+  console.log('HTML loaded');
+</script>
+
+
+  
+  <div id="loading-screen">
+  <span class="loading-text">Loading<span class="dots"></span></span>
+</div>
+
+  <div id="about-button" class="about-trigger" style="
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 9999;
+  color: white;
+  font-family: 'Dreamer';
+  font-size: 1.2rem;
+  cursor: pointer;
+  text-shadow: 0 0 8px white;
+">
+  About
+</div>
+
+<div id="about-overlay" class="hidden">
+    <div class="about-bg"></div> 
+  <div class="about-content">
+    <button id="about-close">X</button>
+    <h2>Welcome</h2>
+    <p>This is a collection of garments designed in CLO3D.</p>
+        <p>Here, they are rendered in a Three.js world.</p>
+    <p>Each piece has been used in digital environments or produced as a physical garment.</p>
+    <p>Select pieces are wearable.</p>
+    <p>Contact me at <a href="mailto:00zelly@gmail.com">00zelly@gmail.com</a> for :<p>
+      <p> 3D garment design, animation, and production, <p>
+
+        <p>or made-to-order physical pieces.</p>
+
+    <ul>
+    </ul>
+  </div>
+</div>
+
+<div id="overlay" class="hidden">
+
+
 
 <script>
   document.documentElement.classList.add('fonts-loading');
@@ -399,13 +631,22 @@ text-shadow:
   });
 </script>
 
-
 
-  <div id="loading-screen">
-  <span class="loading-text">Loading<span class="dots"></span></span>
-</div>
 
-<div id="overlay" class="hidden">
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
 
   <!-- Title: Clickable link box -->
 <div id="title-overlay">
@@ -439,7 +680,66 @@ text-shadow:
       <li><em>Texturing:</em> Substance Painter</li>
       <li><em>Render:</em> Unreal Engine</li>
     </ul>
+
   </div>
+
+ </div> 
+
+
+ <a href="#" id="mail-icon">
+  <img src="./mail.png" alt="Contact" />
+</a>
+
+<div id="contact-box">
+<a href="mailto:oozelly@gmail.com">oozelly@gmail.com</a>
+</div>
+
+<script>
+  const icon = document.getElementById('mail-icon');
+  const box = document.getElementById('contact-box');
+
+  icon.addEventListener('click', (e) => {
+    e.preventDefault();
+    box.style.display = box.style.display === 'block' ? 'none' : 'block';
+  });
+</script>
+
+
+
+
+<script>
+ document.addEventListener('DOMContentLoaded', () => {
+  const aboutBtn = document.getElementById("about-button");
+  const aboutOverlay = document.getElementById("about-overlay");
+  const closeBtn = document.getElementById("about-close");
+
+  aboutBtn.addEventListener("click", () => {
+    aboutOverlay.classList.add("show");
+  });
+
+  closeBtn.addEventListener("click", () => {
+    aboutOverlay.classList.remove("show");
+  });
+});
+
+</script>
+
+
+<script>
+  setTimeout(() => {
+    document.documentElement.classList.remove("fonts-loading");
+  }, 3000);
+
+  if (document.fonts) {
+    document.fonts.ready.then(() => {
+      document.documentElement.classList.remove("fonts-loading");
+    });
+  } else {
+    document.documentElement.classList.remove("fonts-loading");
+  }
+</script>
+
+
 
 
 </body>
