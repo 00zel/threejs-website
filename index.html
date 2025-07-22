@@ -106,8 +106,8 @@ html, body {
 }
 
 .hidden {
-  opacity: 0;
-  pointer-events: none;
+  opacity: 0 !important;
+  pointer-events: none !important;
   transition: opacity 0.3s ease;
 }
 
@@ -378,6 +378,8 @@ background: rgba(0, 0, 0, 0); /* translucent black */
   pointer-events: none;
 }
 
+
+
 .loading-text {
   font-size: 8rem;
   color: white;
@@ -487,7 +489,6 @@ width: 100vw;
 height: 100vh;
 backdrop-filter: blur(12px);
 background-color:transparent;
-  background-color: rgba(0, 0, 0, 0.2); /* fallback for older mobile */
 color: white;
 display: flex;
 justify-content: center;
@@ -524,8 +525,8 @@ z-index: 99999999;
 }
 
 #about-overlay.show {
-  opacity: 1;
-  pointer-events: auto;
+opacity: 1 !important;
+  pointer-events: auto !important;
 
 }
 
@@ -535,7 +536,7 @@ z-index: 99999999;
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0,0,0,0.5); /* semi-transparent black */
+  background-color: rgba(0,0,0,0.1); /* semi-transparent black */
   z-index: 1;
 }
 
@@ -566,8 +567,73 @@ z-index: 99999999;
 }
 
 
+@media screen and (max-width: 768px) {
+  #loading-screen {
+    font-family: 'Galaxyface', sans-serif;
+  }
+
+  #loading-screen .loading-text {
+    font-size: 2.3rem;
+    text-align: center;
+    padding: 0 1rem;
+  }
+
+  #about-overlay {
+    font-size: 0.4rem;
+    line-height: 1.3;
+    padding: 0.5rem;
+  }
+
+    #about-overlay h2 {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+  }
+
+  #about-overlay p {
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+     text-shadow:
+    0 0 5px rgba(255, 255, 255, 1),
+    0 0 10px rgba(255, 255, 255, 1),
+    0 0 20px rgba(255, 255, 255, 1),
+    0 0 40px rgba(255, 255, 255, 2); /* stronger glow */
+  }
+
+
+  #about-close {
+    top: 1.5rem;
+    right: 1rem;
+    font-size: 2.5rem;
+    padding: 0.5rem 1rem;
+  }
+
+  #project-overlay {
+    font-size: 0.9rem;
+    padding: 1rem;
+  }
+
+  #project-overlay img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  #project-overlay p,
+  #about-overlay p {
+    word-break: break-word;
+    max-width: 100%;
+  }
+
+  .overlay-left p,
+  .overlay-right p,
+  .overlay-right li {
+    font-size: 0.8rem;
+    white-space: normal;
+  }
+  
+}
+
   </style>
-  <script type="module" crossorigin src="./assets/index-hUP-rHtm.js"></script>
+  <script type="module" crossorigin src="./assets/index-BhpcOMxj.js"></script>
 </head>
 
 
@@ -592,7 +658,7 @@ z-index: 99999999;
   left: 20px;
   z-index: 9999;
   color: white;
-  font-family: 'Dreamer';
+  font-family: 'Galaxyface';
   font-size: 1.2rem;
   cursor: pointer;
   text-shadow: 0 0 8px white;
@@ -605,9 +671,9 @@ z-index: 99999999;
   <div class="about-content">
     <button id="about-close">X</button>
     <h2>Welcome</h2>
-    <p>This is a collection of garments designed in CLO3D.</p>
-        <p>Here, they are rendered in a Three.js world.</p>
+    <p>This is a collection of garments created in CLO3D.</p>
     <p>Each piece has been used in digital environments or produced as a physical garment.</p>
+            <p>Here they are rendered in a Three.js world.</p>
     <p>Select pieces are wearable.</p>
     <p>Contact me at <a href="mailto:00zelly@gmail.com">00zelly@gmail.com</a> for :<p>
       <p> 3D garment design, animation, and production, <p>
